@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect, useMemo } from "react";
+import { ShieldCheck, Sparkles } from "lucide-react";
 import TickerTape from "../components/TickerTape";
 import PriceChart from "../components/PriceChart";
 import SignalBoard from "../components/SignalBoard";
@@ -9,9 +10,14 @@ import AdvancedSignal from "../components/AdvancedSignal";
 import FundamentalPanel from "../components/FundamentalPanel";
 import SyariahBadge from "../components/SyariahBadge";
 import PositionPanel from "../components/PositionPanel";
+import LandingShowcase from "../components/LandingShowcase";
 import { useWatchlist } from "../lib/useWatchlist";
 import { usePositions } from "../lib/usePositions";
 import { buildDisplayView } from "../lib/displayMoney";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent } from "@/components/ui/card";
 
 const RANGE_OPTIONS = [
   { value: "6mo", label: "6 bulan" },
@@ -136,22 +142,34 @@ export default function Home() {
     () => buildDisplayView(data, showFxToggle ? displayCurrency : "IDR"),
     [data, displayCurrency, showFxToggle]
   );
+  const showLanding = !data && !error && !loading;
 
   return (
     <main className="min-h-screen">
-      <header className="border-b border-board-line/80 px-6 py-6 sm:px-10">
-        <div className="mx-auto flex max-w-5xl items-end justify-between gap-4">
-          <div>
-            <p className="font-mono text-[10px] uppercase tracking-widest2 text-board-gold/80">
-              Papan bursa pribadi
-            </p>
-            <h1 className="mt-1 font-display text-3xl font-semibold italic tracking-tight text-board-ink text-shadow-glow sm:text-4xl">
-              Papan
-            </h1>
+      <header className="border-b border-white/5 px-6 py-5 sm:px-10">
+        <div className="mx-auto flex max-w-6xl items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="flex size-9 items-center justify-center rounded-lg border border-primary/30 bg-primary/10 text-primary shadow-[0_0_24px_-8px_rgba(45,212,191,0.6)]">
+              <Sparkles className="size-4" />
+            </div>
+            <div>
+              <p className="font-mono text-[10px] uppercase tracking-widest2 text-primary/80">
+                Secure personal desk
+              </p>
+              <h1 className="font-display text-2xl font-semibold italic tracking-tight text-foreground text-shadow-glow sm:text-3xl">
+                Papan
+              </h1>
+            </div>
           </div>
-          <span className="hidden font-mono text-[11px] uppercase tracking-widest2 text-board-dim sm:block">
-            IDX · US · CRYPTO
-          </span>
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            <Badge variant="outline" className="hidden sm:inline-flex">
+              IDX · US · CRYPTO
+            </Badge>
+            <Badge variant="success" className="gap-1">
+              <ShieldCheck className="size-3" />
+              Local-first
+            </Badge>
+          </div>
         </div>
       </header>
 
@@ -162,7 +180,31 @@ export default function Home() {
         currency={view.currency || data?.currency}
       />
 
-      <section className="mx-auto max-w-5xl px-6 py-8 sm:px-10">
+      <section className="mx-auto max-w-6xl px-6 py-8 sm:px-10">
+        {showLanding && (
+          <div className="mb-8 animate-fade-up">
+            <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-br from-white/[0.07] via-white/[0.02] to-transparent px-6 py-10 sm:px-10 sm:py-14">
+              <div className="pointer-events-none absolute -right-16 -top-20 size-64 rounded-full bg-teal-400/15 blur-3xl animate-pulse-glow" />
+              <div className="pointer-events-none absolute -bottom-24 left-10 size-56 rounded-full bg-sky-500/10 blur-3xl" />
+              <p className="font-mono text-[11px] uppercase tracking-widest2 text-teal-300/90">
+                Dark fintech desk
+              </p>
+              <h2 className="mt-3 max-w-xl font-display text-4xl font-semibold leading-tight tracking-tight text-foreground sm:text-5xl">
+                Papan
+              </h2>
+              <p className="mt-4 max-w-lg text-base leading-relaxed text-muted-foreground sm:text-lg">
+                Forecast saham & crypto dengan sinyal selektif, chart proyeksi, dan vault
+                posisi lokal — rasa modern, data tetap di perangkat Anda.
+              </p>
+              <div className="mt-6 flex flex-wrap gap-2">
+                <Badge variant="secondary">Glass UI</Badge>
+                <Badge variant="secondary">No API key</Badge>
+                <Badge variant="secondary">Yahoo via server</Badge>
+              </div>
+            </div>
+          </div>
+        )}
+
         <form
           onSubmit={(e) => {
             e.preventDefault();
@@ -178,13 +220,12 @@ export default function Home() {
             }`}
           >
             <label className="board-label">Ticker</label>
-            <input
+            <Input
               value={symbol}
               onChange={(e) => setSymbol(e.target.value)}
               placeholder={
                 market === "IDX" ? "cth. BBCA" : market === "CRYPTO" ? "cth. BTC" : "cth. AAPL"
               }
-              className="board-input"
               autoComplete="off"
             />
             {suggestions.length > 0 && (
@@ -202,8 +243,10 @@ export default function Home() {
                         runForecast(s.symbol, nextMarket);
                       }}
                     >
-                      <span className="font-mono text-board-ink">{s.symbol}</span>
-                      <span className="truncate pl-3 text-xs text-board-dim">{s.name}</span>
+                      <span className="font-mono text-foreground">{s.symbol}</span>
+                      <span className="truncate pl-3 text-xs text-muted-foreground">
+                        {s.name}
+                      </span>
                     </button>
                   </li>
                 ))}
@@ -254,15 +297,15 @@ export default function Home() {
             </div>
           )}
 
-          <button type="submit" disabled={loading} className="board-btn-primary">
+          <Button type="submit" disabled={loading} variant="gold" size="lg" className="sm:h-10">
             {loading ? "Memuat…" : "Forecast"}
-          </button>
+          </Button>
         </form>
 
         {error && (
-          <p className="mt-4 animate-fade-up rounded-sm border border-board-down/50 bg-board-down/10 px-4 py-3 text-sm text-board-down">
-            {error}
-          </p>
+          <Card className="mt-4 animate-fade-up border-board-down/40 bg-board-down/10">
+            <CardContent className="p-4 text-sm text-board-down">{error}</CardContent>
+          </Card>
         )}
 
         {watchlist.hydrated && (
@@ -296,35 +339,34 @@ export default function Home() {
             <div>
               <div className="mb-3 flex flex-wrap items-end justify-between gap-3">
                 <div>
-                  <p className="font-mono text-[11px] uppercase tracking-widest2 text-board-dim">
+                  <p className="font-mono text-[11px] uppercase tracking-widest2 text-muted-foreground">
                     {data.symbol} · {data.exchangeName}
                   </p>
                   <div className="mt-1 flex flex-wrap items-center gap-3">
-                    <h2 className="font-display text-2xl text-board-ink sm:text-3xl">
+                    <h2 className="font-display text-2xl text-foreground sm:text-3xl">
                       {data.longName}
                     </h2>
                     <SyariahBadge syariah={data.syariah} />
                   </div>
                 </div>
-                <button
+                <Button
                   type="button"
+                  variant={inWatchlist ? "destructive" : "gold"}
+                  size="sm"
                   onClick={() =>
                     inWatchlist
                       ? watchlist.remove(data.symbol, market)
                       : watchlist.add(data.symbol, market)
                   }
-                  className={`rounded-sm border px-3 py-1.5 font-mono text-[11px] uppercase tracking-widest2 transition ${
-                    inWatchlist
-                      ? "border-board-down/60 text-board-down hover:bg-board-down/10"
-                      : "border-board-gold text-board-gold hover:bg-board-gold/10"
-                  }`}
                 >
                   {inWatchlist ? "− watchlist" : "+ watchlist"}
-                </button>
+                </Button>
               </div>
-              <div className="board-panel p-4 sm:p-5">
+              <Card className="p-4 sm:p-5">
                 {view.fxNote && (
-                  <p className="mb-2 font-mono text-[10px] text-board-dim">{view.fxNote}</p>
+                  <p className="mb-2 font-mono text-[10px] text-muted-foreground">
+                    {view.fxNote}
+                  </p>
                 )}
                 <PriceChart
                   dates={data.dates}
@@ -334,7 +376,7 @@ export default function Home() {
                   forecast={view.forecast}
                   currency={view.currency}
                 />
-              </div>
+              </Card>
             </div>
 
             <SignalBoard
@@ -366,7 +408,7 @@ export default function Home() {
 
             <AdvancedSignal advanced={data.advanced} />
 
-            <p className="board-panel-soft px-4 py-3 font-mono text-[11px] leading-relaxed text-board-dim">
+            <p className="board-panel-soft px-4 py-3 font-mono text-[11px] leading-relaxed text-muted-foreground">
               Bukan nasihat keuangan. Forecast memakai sinyal teknikal selektif (rezim
               tren/sideways, SMA, RSI, MACD, Bollinger, volume, ATR, relative strength)
               {market === "CRYPTO"
@@ -379,15 +421,7 @@ export default function Home() {
           </div>
         )}
 
-        {!data && !error && !loading && (
-          <div className="mt-14 animate-fade-up text-center">
-            <p className="font-display text-4xl italic text-board-ink/25 sm:text-5xl">Papan</p>
-            <p className="mx-auto mt-3 max-w-md font-mono text-sm leading-relaxed text-board-dim">
-              Masukkan kode saham atau crypto (BTC, ETH, …) untuk melihat proyeksi tren,
-              sinyal beli/jual, dan hit-rate historis dalam satu papan.
-            </p>
-          </div>
-        )}
+        {showLanding && <LandingShowcase />}
       </section>
     </main>
   );

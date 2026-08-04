@@ -7,11 +7,11 @@ const HEIGHT = 320;
 const PAD = { top: 16, right: 16, bottom: 28, left: 56 };
 
 const COLORS = {
-  close: "#E8E6DC",
-  sma20: "#D4A94A",
+  close: "#E8EEF7",
+  sma20: "#2DD4BF",
   sma50: "#8B96AE",
-  forecast: "#4FAE7A",
-  divider: "#D4A94A",
+  forecast: "#34D399",
+  divider: "#2DD4BF",
 };
 
 const LEGEND_ITEMS = [

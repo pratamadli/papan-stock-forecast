@@ -8,22 +8,22 @@ const ACTION_STYLES = {
     label: "BELI",
     color: "text-board-up",
     border: "border-board-up",
-    glow: "shadow-[0_0_40px_-12px_rgba(79,174,122,0.55)]",
+    glow: "shadow-[0_0_40px_-12px_rgba(52,211,153,0.55)]",
     bar: "bg-board-up",
   },
   SELL: {
     label: "JUAL",
     color: "text-board-down",
     border: "border-board-down",
-    glow: "shadow-[0_0_40px_-12px_rgba(199,84,80,0.55)]",
+    glow: "shadow-[0_0_40px_-12px_rgba(248,113,113,0.55)]",
     bar: "bg-board-down",
   },
   HOLD: {
     label: "TAHAN",
-    color: "text-board-gold",
-    border: "border-board-gold",
-    glow: "shadow-[0_0_40px_-12px_rgba(212,169,74,0.45)]",
-    bar: "bg-board-gold",
+    color: "text-board-hold",
+    border: "border-board-hold",
+    glow: "shadow-[0_0_40px_-12px_rgba(234,179,8,0.5)]",
+    bar: "bg-board-hold",
   },
 };
 
@@ -66,7 +66,7 @@ export default function SignalBoard({ signal, currency, price }) {
   return (
     <div className="grid gap-5 md:grid-cols-[240px_1fr]">
       <div
-        className={`flex flex-col items-center justify-center rounded-sm border-2 ${style.border} ${style.glow} bg-board-panel/95 px-6 py-9 animate-flip backdrop-blur-sm`}
+        className={`glass-card flex flex-col items-center justify-center rounded-xl border-2 ${style.border} ${style.glow} px-6 py-9 animate-flip`}
       >
         <span className="font-mono text-[11px] uppercase tracking-widest2 text-board-dim">
           Sinyal

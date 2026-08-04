@@ -6,7 +6,7 @@ import { exportWatchlistCsv } from "../lib/exportCsv";
 const ACTION_STYLES = {
   BUY: { label: "BELI", color: "text-board-up", border: "border-board-up" },
   SELL: { label: "JUAL", color: "text-board-down", border: "border-board-down" },
-  HOLD: { label: "TAHAN", color: "text-board-gold", border: "border-board-gold" },
+  HOLD: { label: "TAHAN", color: "text-board-hold", border: "border-board-hold" },
 };
 
 function WatchCard({ entry, onRemove, onSelect, onSnapshot }) {
@@ -52,8 +52,8 @@ function WatchCard({ entry, onRemove, onSelect, onSnapshot }) {
 
   return (
     <div
-      className={`flex items-center justify-between gap-3 rounded-sm border bg-board-panel/90 px-4 py-3 backdrop-blur-sm transition hover:bg-board-panel ${
-        style ? style.border : "border-board-line"
+      className={`glass-card flex items-center justify-between gap-3 rounded-xl border px-4 py-3 transition hover:bg-white/[0.06] ${
+        style ? style.border : "border-white/10"
       }`}
     >
       <button

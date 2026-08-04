@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
+import { exportWatchlistCsv } from "../lib/exportCsv";
 
 const ACTION_STYLES = {
   BUY: { label: "BELI", color: "text-board-up", border: "border-board-up" },
@@ -8,7 +9,7 @@ const ACTION_STYLES = {
   HOLD: { label: "TAHAN", color: "text-board-gold", border: "border-board-gold" },
 };
 
-function WatchCard({ entry, onRemove, onSelect }) {
+function WatchCard({ entry, onRemove, onSelect, onSnapshot }) {
   const [state, setState] = useState({ status: "loading", data: null, error: null });
 
   const load = useCallback(async () => {
@@ -23,10 +24,18 @@ function WatchCard({ entry, onRemove, onSelect }) {
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || "Gagal memuat");
       setState({ status: "ready", data: json, error: null });
+      onSnapshot?.(entry, {
+        price: json.closes[json.closes.length - 1],
+        currency: json.currency,
+        signal: json.signal?.action,
+        score: json.signal?.score,
+        syariah: json.syariah?.status,
+      });
     } catch (err) {
       setState({ status: "error", data: null, error: err.message });
+      onSnapshot?.(entry, null);
     }
-  }, [entry.symbol, entry.market]);
+  }, [entry, onSnapshot]);
 
   useEffect(() => {
     load();
@@ -43,7 +52,7 @@ function WatchCard({ entry, onRemove, onSelect }) {
 
   return (
     <div
-      className={`flex items-center justify-between gap-3 rounded-sm border bg-board-panel px-4 py-3 ${
+      className={`flex items-center justify-between gap-3 rounded-sm border bg-board-panel/90 px-4 py-3 backdrop-blur-sm transition hover:bg-board-panel ${
         style ? style.border : "border-board-line"
       }`}
     >
@@ -91,6 +100,31 @@ function WatchCard({ entry, onRemove, onSelect }) {
 }
 
 export default function Watchlist({ list, onRemove, onSelect }) {
+  const snapshotsRef = useRef({});
+
+  const onSnapshot = useCallback((entry, snap) => {
+    const key = `${entry.symbol}|${entry.market}`;
+    if (snap) snapshotsRef.current[key] = { ...entry, ...snap };
+    else delete snapshotsRef.current[key];
+  }, []);
+
+  const handleExport = () => {
+    const rows = list.map((entry) => {
+      const key = `${entry.symbol}|${entry.market}`;
+      const snap = snapshotsRef.current[key];
+      return {
+        symbol: entry.symbol,
+        market: entry.market,
+        price: snap?.price,
+        currency: snap?.currency,
+        signal: snap?.signal,
+        score: snap?.score,
+        syariah: snap?.syariah,
+      };
+    });
+    exportWatchlistCsv(rows);
+  };
+
   if (list.length === 0) {
     return (
       <p className="font-mono text-xs text-board-dim">
@@ -101,12 +135,22 @@ export default function Watchlist({ list, onRemove, onSelect }) {
 
   return (
     <div className="space-y-2">
+      <div className="flex justify-end">
+        <button
+          type="button"
+          onClick={handleExport}
+          className="rounded-sm border border-board-line px-2 py-1 font-mono text-[11px] uppercase tracking-widest2 text-board-dim hover:border-board-gold hover:text-board-gold"
+        >
+          Ekspor CSV
+        </button>
+      </div>
       {list.map((entry) => (
         <WatchCard
           key={`${entry.symbol}-${entry.market}`}
           entry={entry}
           onRemove={onRemove}
           onSelect={onSelect}
+          onSnapshot={onSnapshot}
         />
       ))}
     </div>

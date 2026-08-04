@@ -2,6 +2,14 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  --board-bg: #0b1220;
+  --board-gold: #d4a94a;
+  --board-up: #4fae7a;
+  --board-down: #c75450;
+  --board-line: #243252;
+}
+
 ::selection {
   background: #d4a94a55;
 }
@@ -10,13 +18,148 @@
   scrollbar-color: #243252 #0b1220;
 }
 
+/* Atmospheric trading-floor canvas — not flat navy */
+body {
+  background-color: var(--board-bg);
+  background-image:
+    radial-gradient(ellipse 80% 50% at 10% -10%, rgba(212, 169, 74, 0.09), transparent 55%),
+    radial-gradient(ellipse 60% 40% at 95% 0%, rgba(79, 174, 122, 0.06), transparent 50%),
+    radial-gradient(ellipse 50% 60% at 50% 110%, rgba(36, 50, 82, 0.55), transparent 60%),
+    linear-gradient(180deg, #0d1526 0%, #0b1220 40%, #0a101c 100%);
+  background-attachment: fixed;
+  min-height: 100%;
+}
+
+/* Subtle board grid (fintech HUD, low noise) */
+.board-canvas::before {
+  content: "";
+  pointer-events: none;
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  opacity: 0.35;
+  background-image:
+    linear-gradient(rgba(232, 230, 220, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(232, 230, 220, 0.03) 1px, transparent 1px);
+  background-size: 48px 48px;
+  mask-image: radial-gradient(ellipse 70% 60% at 50% 30%, black, transparent);
+}
+
+.board-canvas > * {
+  position: relative;
+  z-index: 1;
+}
+
+@layer components {
+  .board-panel {
+    @apply rounded-sm border border-board-line bg-board-panel/90 backdrop-blur-sm;
+    box-shadow: 0 1px 0 rgba(212, 169, 74, 0.06) inset, 0 12px 40px -24px rgba(0, 0, 0, 0.55);
+  }
+
+  /* While autocomplete is open: solid panel so list doesn't look stacked/glassy. */
+  .board-panel.board-panel--menu-open {
+    background-color: #111a2e;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+
+  .board-panel-soft {
+    @apply rounded-sm border border-board-line/80 bg-board-panel2/80 backdrop-blur-sm;
+  }
+
+  .board-label {
+    @apply mb-1 block font-mono text-[11px] uppercase tracking-widest2 text-board-dim;
+  }
+
+  .board-section-title {
+    @apply font-mono text-[11px] uppercase tracking-widest2 text-board-dim;
+  }
+
+  .board-input {
+    @apply w-full rounded-sm border border-board-line bg-board-panel2/90 px-3 py-2.5 font-mono text-board-ink outline-none transition;
+    @apply focus:border-board-gold focus-visible:ring-2 focus-visible:ring-board-gold/40;
+  }
+
+  .board-btn-primary {
+    @apply rounded-sm border border-board-gold bg-board-gold/15 px-5 py-2.5 font-mono text-sm uppercase tracking-widest2 text-board-gold transition;
+    @apply hover:bg-board-gold/25 hover:shadow-[0_0_24px_-6px_rgba(212,169,74,0.45)];
+    @apply disabled:opacity-50 disabled:hover:shadow-none;
+  }
+
+  .board-metric {
+    @apply rounded-sm border border-board-line/90 bg-board-panel2/60 px-2 py-1.5;
+  }
+
+  /* Solid opaque autocomplete — must not inherit board-panel glass/blur. */
+  .board-autocomplete {
+    position: absolute;
+    z-index: 50;
+    margin-top: 0.25rem;
+    width: 100%;
+    overflow: hidden;
+    border-radius: 2px;
+    border: 1px solid #2a3654;
+    background-color: #111a2e;
+    background-image: none;
+    box-shadow: 0 16px 40px -8px rgba(0, 0, 0, 0.9);
+    isolation: isolate;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+
+  .board-autocomplete li {
+    border-bottom: 1px solid rgba(42, 54, 84, 0.7);
+    background-color: #111a2e;
+  }
+
+  .board-autocomplete li:last-child {
+    border-bottom: none;
+  }
+
+  .board-autocomplete button {
+    display: flex;
+    width: 100%;
+    align-items: center;
+    justify-content: space-between;
+    background-color: #111a2e;
+    padding: 0.625rem 0.75rem;
+    text-align: left;
+    font-size: 0.875rem;
+    transition: background-color 0.12s ease;
+  }
+
+  .board-autocomplete button:hover,
+  .board-autocomplete button:focus-visible {
+    background-color: #1a2744;
+  }
+}
+
 .text-shadow-glow {
-  text-shadow: 0 0 18px rgba(212, 169, 74, 0.35);
+  text-shadow: 0 0 28px rgba(212, 169, 74, 0.28), 0 1px 0 rgba(0, 0, 0, 0.4);
+}
+
+.conf-bar {
+  height: 3px;
+  border-radius: 999px;
+  background: rgba(36, 50, 82, 0.9);
+  overflow: hidden;
+}
+
+.conf-bar > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  transition: width 0.35s ease-out;
 }
 
 @media (prefers-reduced-motion: reduce) {
   .animate-marquee,
-  .animate-flip {
+  .animate-flip,
+  .animate-fade-up {
     animation: none !important;
+  }
+
+  .conf-bar > span {
+    transition: none;
   }
 }

@@ -3,16 +3,18 @@
 import InfoTip from "./InfoTip";
 import { INDICATOR_TIPS } from "../lib/indicatorTips";
 
-export default function FundamentalPanel({ fundamental, currency, currentYear }) {
+export default function FundamentalPanel({ fundamental, currency, market }) {
   if (!fundamental) {
+    const cryptoNote =
+      market === "CRYPTO"
+        ? "Valuasi fundamental (EPS/P/E/CAGR laba) tidak berlaku untuk crypto — panel ini sengaja dikosongkan. Pakai sinyal teknikal & jurnal posisi saja."
+        : "Data fundamental (EPS/laba historis) belum tersedia untuk ticker ini.";
     return (
-      <div className="rounded-sm border border-board-line bg-board-panel p-5">
+      <div className="board-panel p-5">
         <span className="font-mono text-[11px] uppercase tracking-widest2 text-board-dim">
           Valuasi Fundamental
         </span>
-        <p className="mt-2 font-mono text-xs text-board-dim">
-          Data fundamental (EPS/laba historis) belum tersedia untuk ticker ini.
-        </p>
+        <p className="mt-2 font-mono text-xs text-board-dim">{cryptoNote}</p>
       </div>
     );
   }

@@ -15,7 +15,7 @@ export default function AdvancedSignal({ advanced }) {
   const beatsBaseline = xgbAcc != null && baselineAcc != null && xgbAcc > baselineAcc;
 
   return (
-    <div className="rounded-sm border border-board-gold/50 bg-board-panel p-5">
+    <div className="board-panel border-board-gold/40 p-5">
       <div className="mb-3 flex items-center justify-between">
         <span className="font-mono text-[11px] uppercase tracking-widest2 text-board-gold">
           XGBoost (local) · {horizon_days} hari ke depan

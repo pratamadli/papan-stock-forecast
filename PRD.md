@@ -26,15 +26,28 @@ sengaja **tidak** di-deploy karena keterbatasan environment serverless.
 | Proyek Vercel | `papan-stock-forecast` |
 | Production URL | https://papan-stock-forecast.vercel.app/ |
 | Production branch | `main` → production; `dev` (& lainnya) → preview |
+| Versi app | `1.1.1` (`package.json`; footer `Papan v…`) |
 | Framework | Next.js 14 (App Router), React 18 |
-| Styling | Tailwind CSS (`tailwind.config.js`, `postcss.config.js`) |
+| Styling | Tailwind CSS + **shadcn/ui** — dark fintech glassmorphism (teal accent) |
 | Config Next | `next.config.js` — `reactStrictMode: true` |
+| Analytics | `@vercel/analytics` di `app/layout.js` |
+| Favicon | `app/icon.svg` + `app/apple-icon.svg` (sparkles mark) |
 | Env wajib (Vercel / production) | tidak ada |
 | Env opsional (dev lokal) | `LOCAL_FORECAST_URL` (default `http://localhost:8000`) di `lib/localForecast.js` |
 | Git ignore | `node_modules`, `.next`, `.vercel`, `.env*.local`, `.env*` |
 
 Dokumen ini (`PRD.md`) dan `PRD-stock-forecast.md` isinya sama; yang kedua
 disimpan sebagai salinan bernama repo untuk referensi cepat.
+
+### 1.2 Riwayat versi (ringkas)
+
+| Versi | Ringkasan |
+|---|---|
+| `1.0.0` | Rilis dasar IDX/US, watchlist, posisi, syariah, fundamental, XGBoost lokal |
+| `1.1.0` | CRYPTO, toggle USD/IDR, sinyal selektif, kalender libur, CSV, override target |
+| `1.1.1` | shadcn + dark glass UI, landing showcase, warna sinyal H/K/M, Analytics, favicon |
+
+Lihat **Version Update Log** di `README.md` untuk detail penuh.
 
 ---
 
@@ -96,6 +109,11 @@ publik/banyak orang sekaligus.
 | Valuasi fundamental + harga wajar | ✅ | CAGR, MoS, tabel proyeksi + keterangan per tahun |
 | Format mata uang per bursa | ✅ | IDX → `Rp`; US & CRYPTO → `$` (+ toggle tampilan Rp via kurs USD/IDR) |
 | Crypto (teknikal-only) | ✅ | Market `CRYPTO`; tanpa fundamental; syariah N/A; cek 24/7 |
+| Landing showcase (UI) | ✅ | Chart preview, trust, security, vault — tanpa ubah fungsi |
+| Warna sinyal BELI/TAHAN/JUAL | ✅ | Hijau / kuning (`board-hold`) / merah |
+| UI shadcn + glassmorphism | ✅ | Card/Button/Badge/Input; tema dark fintech |
+| Vercel Analytics | ✅ | Page views production via `@vercel/analytics` |
+| Favicon app (bukan Vercel) | ✅ | Sparkles SVG di tab browser |
 | Forecast lanjutan (XGBoost) | ✅ (lokal only) | Servis Python; di-skip untuk CRYPTO di API |
 | Backtest walk-forward | ✅ (lokal only) | Bandingkan XGBoost vs baseline SMA |
 | Syariah screener | ✅ | DES lokal untuk IDX; US/CRYPTO → not-applicable |
@@ -107,11 +125,14 @@ publik/banyak orang sekaligus.
 
 **App utama (deploy ke Vercel):**
 - **Framework**: Next.js 14 (App Router), React 18
-- **Styling**: Tailwind CSS, custom design token ("papan bursa" theme —
-  navy/gold/mono, bukan default Tailwind)
+- **Styling**: Tailwind CSS + **shadcn/ui** (`components/ui/*`, `lib/utils.js`,
+  `components.json`) — dark fintech glassmorphism, aksen teal; token
+  `board-*` (termasuk `board-hold` kuning untuk TAHAN)
 - **Font**: Fraunces (display), IBM Plex Mono (data/angka), Inter (body)
+- **Analytics**: `@vercel/analytics` (root layout)
 - **Data source**: Yahoo Finance public chart & search endpoints (tanpa
-  API key), dipanggil dari API route Next.js (server-side, hindari CORS)
+  API key), dipanggil dari API route Next.js (server-side, hindari CORS);
+  kurs USD/IDR (`fetchUsdIdrRate`) untuk toggle tampilan Rupiah
 - **State**: React state + `localStorage` untuk watchlist & jurnal posisi
   (tanpa database)
 - **Chart**: SVG custom di `PriceChart.js` (bukan recharts/chart.js) —
@@ -141,9 +162,10 @@ di-commit (ada di `.gitignore`).
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │                     Browser (React UI)                       │
-│  - Form cari ticker + pilih bursa/rentang                    │
+│  - Landing glass UI + form cari ticker / bursa / rentang     │
 │  - Watchlist + jurnal posisi (baca/tulis localStorage)       │
 │  - Render chart, signal board, fundamental, advanced panel   │
+│  - Vercel Analytics (page views)                             │
 └───────────────┬───────────────────────────────────────────────┘
                 │ fetch /api/stock?symbol=...&market=...
                 ▼
@@ -424,8 +446,9 @@ jaringan kantor: `SSLCertVerificationError` saat `yfinance` hit
 
 - **Utama (deployed)**: Yahoo Finance public chart & search endpoint,
   tanpa API key, dipanggil server-side dari Next.js API route. Saham
-  IDX otomatis di-suffix `.JK`. Mata uang response dipaksa dari market:
-  IDX → `IDR`, US → `USD`.
+  IDX otomatis di-suffix `.JK`; crypto → `*-USD`. Mata uang response
+  dipaksa dari market: IDX → `IDR`, US & CRYPTO → `USD`. Toggle tampilan
+  Rupiah memakai kurs spot Yahoo (`IDR=X` / `USDIDR=X`) — bukan pair BIDR.
 - **Lokal (XGBoost service)**: chart API Yahoo yang sama (periode lebih
   panjang, ~3–5 tahun), bukan crumb flow `yfinance`.
 - **BEI resmi**: tidak dipakai. BEI menjual data real-time lewat produk
@@ -442,16 +465,19 @@ jaringan kantor: `SSLCertVerificationError` saat `yfinance` hit
 ```
 papan-stock-forecast/
 ├── app/
-│   ├── page.js                 # UI utama (search, chart, signal, watchlist, posisi)
-│   ├── layout.js                # Root layout + font
-│   ├── globals.css
+│   ├── page.js                 # UI utama (hero/landing, search, chart, signal, …)
+│   ├── layout.js                # Root layout + font + Analytics + footer versi
+│   ├── globals.css              # Tema glass + token shadcn CSS variables
+│   ├── icon.svg / apple-icon.svg # Favicon sparkles (tab browser)
 │   └── api/
-│       ├── stock/route.js       # Endpoint utama: history + sinyal + fundamental + syariah + advanced
+│       ├── stock/route.js       # history + sinyal + fundamental + syariah + fx + advanced
 │       └── search/route.js      # Autocomplete ticker
 ├── components/
+│   ├── ui/                       # shadcn: button, card, badge, input, separator
+│   ├── LandingShowcase.js        # Landing trust / security / vault (UI only)
 │   ├── TickerTape.js             # Marquee harga berjalan
 │   ├── PriceChart.js             # Chart SVG + legend warna + hover/tooltip nilai
-│   ├── SignalBoard.js            # Papan BUY/SELL/HOLD + indikator + tooltip
+│   ├── SignalBoard.js            # Papan BELI/TAHAN/JUAL (hijau/kuning/merah)
 │   ├── FundamentalPanel.js       # Panel CAGR/harga wajar/Margin of Safety
 │   ├── PositionPanel.js          # Form catat beli + override + CSV + saran cek/jual
 │   ├── InfoTip.js                # Tooltip penjelasan istilah
@@ -459,7 +485,9 @@ papan-stock-forecast/
 │   ├── AdvancedSignal.js         # Panel XGBoost (muncul kalau servis lokal nyala)
 │   └── Watchlist.js              # Daftar saham dipantau + ekspor CSV
 ├── lib/
-│   ├── yahoo.js                  # Fetch data + fundamental + search dari Yahoo Finance
+│   ├── utils.js                  # cn() untuk shadcn/tailwind-merge
+│   ├── displayMoney.js           # Konversi tampilan USD ↔ IDR (client)
+│   ├── yahoo.js                  # Fetch data + fundamental + search + USDIDR
 │   ├── forecast.js               # Rezim/volume/ATR/RS + skor + backtestSignal
 │   ├── fundamentalValuation.js   # CAGR + harga wajar per tahun + Margin of Safety
 │   ├── positionAdvice.js         # Logic cek lagi / saran jual / P&L
@@ -470,6 +498,7 @@ papan-stock-forecast/
 │   ├── localForecast.js          # Client buat panggil servis Python (best-effort)
 │   ├── useWatchlist.js           # Hook localStorage watchlist
 │   └── usePositions.js           # Hook localStorage jurnal posisi (+ update override)
+├── components.json               # Config shadcn/ui
 ├── data/
 │   └── syariah-list.json         # Referensi JII/DES manual (KEP-21/D.04/2026)
 └── local-forecast/                # Servis Python, TIDAK di-deploy

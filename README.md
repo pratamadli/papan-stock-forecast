@@ -14,8 +14,11 @@ API key), lalu kasih sinyal BUY/SELL/HOLD.
 | Proyek Vercel | `papan-stock-forecast` |
 | Production URL | https://papan-stock-forecast.vercel.app/ |
 | Deploy branches | `main` → production; `dev` → preview |
-| Stack | Next.js 14 (App Router), React 18, Tailwind CSS |
-| UI | Tema papan bursa (navy/gold) — glass panel, atmosfer grid, sinyal HUD |
+| Stack | Next.js 14 (App Router), React 18, Tailwind CSS, shadcn/ui |
+| Versi | `1.1.1` (`package.json` → footer `Papan v…`) |
+| UI | Dark fintech glassmorphism — teal accent, sinyal hijau/kuning/merah, landing trust/security/vault |
+| Analytics | `@vercel/analytics` di root layout |
+| Favicon | `app/icon.svg` (+ `apple-icon.svg`) — sparkles mark |
 | Env wajib (deploy) | tidak ada |
 | Env opsional (lokal) | `LOCAL_FORECAST_URL` — URL servis XGBoost (default `http://localhost:8000`) |
 | Di-ignore git | `node_modules`, `.next`, `.vercel`, `.env*`, `.env*.local` |
@@ -149,7 +152,7 @@ Rilis dasar Papan — forecast saham pribadi untuk **IDX** dan **US**:
 - Deploy Vercel: `main` → production, branch lain → preview
 - UI tema papan bursa (navy/gold)
 
-### 1.1.0 *(latest)*
+### 1.1.0
 
 Pembaruan di atas 1.0.0:
 
@@ -167,6 +170,19 @@ Pembaruan di atas 1.0.0:
 - Update referensi syariah JII / DES Periode I 2026
 - UI refresh (glass panel, atmosfer, polish autocomplete dropdown)
 - Footer versi app (`Papan v…` dari `package.json`)
+
+### 1.1.1 *(latest)*
+
+Pembaruan di atas 1.1.0:
+
+- Integrasi **shadcn/ui** (`Button`, `Card`, `Badge`, `Input`, `Separator`)
+  + tema dark fintech glassmorphism (aksen teal)
+- Landing showcase (UI only): chart preview, trust indicators, security
+  highlights, personal vault / wallet framing — fungsi forecast tidak berubah
+- Warna sinyal eksplisit: **BELI** hijau · **TAHAN** kuning · **JUAL** merah
+- **Vercel Analytics** (`@vercel/analytics`) di root layout
+- Favicon / Apple touch icon sparkles (`app/icon.svg`, `app/apple-icon.svg`)
+  menggantikan ikon default Vercel di tab browser
 
 ## Catatan
 

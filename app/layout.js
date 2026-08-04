@@ -30,12 +30,15 @@ export const metadata = {
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="id" className={`${fraunces.variable} ${plexMono.variable} ${inter.variable}`}>
-      <body className="board-canvas text-board-ink font-body antialiased">
+    <html
+      lang="id"
+      className={`dark ${fraunces.variable} ${plexMono.variable} ${inter.variable}`}
+    >
+      <body className="board-canvas min-h-screen font-body text-foreground antialiased">
         {children}
-        <footer className="relative z-[1] px-6 pb-8 pt-4 text-center sm:px-10">
-          <p className="font-mono text-[10px] uppercase tracking-widest2 text-board-dim">
-            Papan v{version}
+        <footer className="relative z-[1] border-t border-white/5 px-6 pb-8 pt-6 text-center sm:px-10">
+          <p className="font-mono text-[10px] uppercase tracking-widest2 text-muted-foreground">
+            Papan v{version} · local-first desk
           </p>
         </footer>
         <Analytics />

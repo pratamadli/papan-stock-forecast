@@ -1,4 +1,5 @@
 import { Fraunces, IBM_Plex_Mono, Inter } from "next/font/google";
+import { Analytics } from "@vercel/analytics/react";
 import { version } from "../package.json";
 import "./globals.css";
 
@@ -37,6 +38,7 @@ export default function RootLayout({ children }) {
             Papan v{version}
           </p>
         </footer>
+        <Analytics />
       </body>
     </html>
   );

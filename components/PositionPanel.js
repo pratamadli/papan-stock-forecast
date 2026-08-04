@@ -1,0 +1,511 @@
+"use client";
+
+import { useEffect, useState, useCallback, useMemo } from "react";
+import {
+  buildAdvice,
+  formatDateTime,
+  toDatetimeLocalValue,
+  CHECK_HORIZON_DAYS,
+} from "../lib/positionAdvice";
+
+const ADVICE_STYLES = {
+  jual: { label: "SARAN JUAL", color: "text-board-down", border: "border-board-down" },
+  cek: { label: "SAATNYA CEK", color: "text-board-gold", border: "border-board-gold" },
+  tahan: { label: "TAHAN", color: "text-board-up", border: "border-board-up" },
+  sudah_dijual: { label: "TERJUAL", color: "text-board-dim", border: "border-board-line" },
+};
+
+/** IDX → Rupiah (Rp), US → USD ($). Market always wins over Yahoo meta. */
+function currencyForMarket(market, fallback) {
+  if (market === "IDX") return "IDR";
+  if (market === "US") return "USD";
+  return fallback === "IDR" ? "IDR" : "USD";
+}
+
+function fmtPrice(n, currency) {
+  if (n == null || Number.isNaN(n)) return "—";
+  if (currency === "IDR") {
+    return `Rp ${n.toLocaleString("id-ID", { maximumFractionDigits: 0 })}`;
+  }
+  return `$${n.toLocaleString("en-US", { maximumFractionDigits: 2 })}`;
+}
+
+function currencyLabel(currency) {
+  return currency === "IDR" ? "Rp" : "USD";
+}
+
+function fmtPct(n) {
+  if (n == null) return "—";
+  const sign = n > 0 ? "+" : "";
+  return `${sign}${(n * 100).toFixed(2)}%`;
+}
+
+function PositionCard({
+  position,
+  live,
+  highlighted,
+  onSelect,
+  onClose,
+  onRemove,
+}) {
+  const [closing, setClosing] = useState(false);
+  const [sellAt, setSellAt] = useState(toDatetimeLocalValue());
+  const [sellPrice, setSellPrice] = useState("");
+
+  const advice = useMemo(
+    () =>
+      buildAdvice({
+        position,
+        signal: live?.signal ?? null,
+        currentPrice: live?.price ?? null,
+      }),
+    [position, live]
+  );
+
+  const style = ADVICE_STYLES[advice.sellAdvice] || ADVICE_STYLES.tahan;
+  const currency = currencyForMarket(
+    position.market,
+    position.currency || live?.currency
+  );
+
+  useEffect(() => {
+    if (closing && live?.price != null && sellPrice === "") {
+      setSellPrice(String(live.price));
+    }
+  }, [closing, live?.price, sellPrice]);
+
+  return (
+    <div
+      className={`rounded-sm border bg-board-panel px-4 py-3 ${
+        highlighted ? "border-board-gold" : style.border
+      }`}
+    >
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <button
+          type="button"
+          onClick={() => onSelect?.(position)}
+          className="text-left"
+        >
+          <div className="font-mono text-sm text-board-ink">{position.symbol}</div>
+          <div className="mt-0.5 font-mono text-[11px] text-board-dim">
+            Beli {formatDateTime(position.buyAt)} @ {fmtPrice(position.buyPrice, currency)}
+            {position.lots > 1 ? ` · ${position.lots} lot` : ""}
+          </div>
+        </button>
+        <span className={`font-mono text-[11px] font-semibold uppercase tracking-widest2 ${style.color}`}>
+          {style.label}
+        </span>
+      </div>
+
+      <div className="mt-3 grid grid-cols-2 gap-2 font-mono text-xs sm:grid-cols-4">
+        <Stat
+          label="Harga sekarang"
+          value={
+            live?.status === "loading"
+              ? "memuat…"
+              : live?.status === "error"
+              ? "gagal"
+              : fmtPrice(advice.currentPrice, currency)
+          }
+        />
+        <Stat
+          label="P&L"
+          value={fmtPct(advice.pnlPct)}
+          highlight={
+            advice.pnlPct == null ? null : advice.pnlPct >= 0 ? "up" : "down"
+          }
+        />
+        <Stat
+          label="Target jual"
+          value={fmtPrice(advice.targetPrice, currency)}
+        />
+        <Stat
+          label="Nominal P&L"
+          value={
+            advice.pnlNominal == null ? "—" : fmtPrice(advice.pnlNominal, currency)
+          }
+          highlight={
+            advice.pnlNominal == null ? null : advice.pnlNominal >= 0 ? "up" : "down"
+          }
+        />
+      </div>
+
+      <div className="mt-3 space-y-1 font-mono text-[11px]">
+        <p
+          className={
+            advice.checkStatus === "overdue"
+              ? "text-board-down"
+              : advice.checkStatus === "due"
+              ? "text-board-gold"
+              : "text-board-dim"
+          }
+        >
+          {advice.checkLabel}
+        </p>
+        <p className="text-board-ink/85">{advice.sellReason}</p>
+        {position.status === "closed" && (
+          <p className="text-board-dim">
+            Jual {formatDateTime(position.sellAt)} @ {fmtPrice(position.sellPrice, currency)}
+          </p>
+        )}
+      </div>
+
+      <div className="mt-3 flex flex-wrap items-center gap-2">
+        {position.status === "open" && !closing && (
+          <button
+            type="button"
+            onClick={() => {
+              setSellAt(toDatetimeLocalValue());
+              setSellPrice(live?.price != null ? String(live.price) : "");
+              setClosing(true);
+            }}
+            className="rounded-sm border border-board-down/60 px-2 py-1 font-mono text-[11px] uppercase tracking-widest2 text-board-down hover:bg-board-down/10"
+          >
+            Tandai terjual
+          </button>
+        )}
+        <button
+          type="button"
+          onClick={() => onRemove(position.id)}
+          className="rounded-sm border border-board-line px-2 py-1 font-mono text-[11px] uppercase tracking-widest2 text-board-dim hover:text-board-down"
+        >
+          Hapus
+        </button>
+      </div>
+
+      {closing && position.status === "open" && (
+        <form
+          className="mt-3 grid gap-2 border-t border-board-line pt-3 sm:grid-cols-[1fr_1fr_auto]"
+          onSubmit={(e) => {
+            e.preventDefault();
+            onClose(position.id, { sellAt, sellPrice: Number(sellPrice) });
+            setClosing(false);
+          }}
+        >
+          <label className="block">
+            <span className="mb-1 block font-mono text-[10px] uppercase tracking-widest2 text-board-dim">
+              Tanggal & waktu jual
+            </span>
+            <input
+              type="datetime-local"
+              value={sellAt}
+              onChange={(e) => setSellAt(e.target.value)}
+              required
+              className="w-full rounded-sm border border-board-line bg-board-panel2 px-2 py-1.5 font-mono text-xs text-board-ink outline-none focus:border-board-gold"
+            />
+          </label>
+          <label className="block">
+            <span className="mb-1 block font-mono text-[10px] uppercase tracking-widest2 text-board-dim">
+              Harga jual ({currencyLabel(currency)})
+            </span>
+            <input
+              type="number"
+              step={currency === "IDR" ? "1" : "0.01"}
+              min="0"
+              value={sellPrice}
+              onChange={(e) => setSellPrice(e.target.value)}
+              required
+              className="w-full rounded-sm border border-board-line bg-board-panel2 px-2 py-1.5 font-mono text-xs text-board-ink outline-none focus:border-board-gold"
+            />
+          </label>
+          <div className="flex items-end gap-2">
+            <button
+              type="submit"
+              className="rounded-sm border border-board-down/60 bg-board-down/10 px-3 py-1.5 font-mono text-[11px] uppercase tracking-widest2 text-board-down"
+            >
+              Simpan
+            </button>
+            <button
+              type="button"
+              onClick={() => setClosing(false)}
+              className="rounded-sm border border-board-line px-3 py-1.5 font-mono text-[11px] uppercase tracking-widest2 text-board-dim"
+            >
+              Batal
+            </button>
+          </div>
+        </form>
+      )}
+    </div>
+  );
+}
+
+function Stat({ label, value, highlight }) {
+  const color =
+    highlight === "up"
+      ? "text-board-up"
+      : highlight === "down"
+      ? "text-board-down"
+      : "text-board-ink";
+  return (
+    <div className="rounded-sm border border-board-line px-2 py-1.5">
+      <div className="text-board-dim">{label}</div>
+      <div className={color}>{value}</div>
+    </div>
+  );
+}
+
+function BuyForm({ data, market, onAdd }) {
+  const lastPrice = data?.closes?.[data.closes.length - 1];
+  const forecastTarget = data?.signal?.forecast?.length
+    ? data.signal.forecast[data.signal.forecast.length - 1]
+    : null;
+
+  const [buyAt, setBuyAt] = useState(toDatetimeLocalValue());
+  const [buyPrice, setBuyPrice] = useState(lastPrice != null ? String(lastPrice) : "");
+  const [lots, setLots] = useState("1");
+  const [saved, setSaved] = useState(false);
+
+  useEffect(() => {
+    if (lastPrice != null) setBuyPrice(String(lastPrice));
+    setBuyAt(toDatetimeLocalValue());
+    setSaved(false);
+  }, [data?.symbol, lastPrice]);
+
+  if (!data) return null;
+
+  const currency = currencyForMarket(market, data.currency);
+
+  return (
+    <form
+      className="rounded-sm border border-board-line bg-board-panel p-4"
+      onSubmit={(e) => {
+        e.preventDefault();
+        const entry = onAdd({
+          symbol: data.symbol,
+          market,
+          buyAt,
+          buyPrice: Number(buyPrice),
+          lots: Number(lots) || 1,
+          targetPrice: forecastTarget,
+        });
+        if (entry) {
+          setSaved(true);
+          setTimeout(() => setSaved(false), 2000);
+        }
+      }}
+    >
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <span className="font-mono text-[11px] uppercase tracking-widest2 text-board-dim">
+          Catat beli — {data.symbol} · {currencyLabel(currency)}
+        </span>
+        <span className="font-mono text-[10px] text-board-dim">
+          Cek otomatis +{CHECK_HORIZON_DAYS} hari
+        </span>
+      </div>
+
+      <div className="grid gap-3 sm:grid-cols-4">
+        <label className="block sm:col-span-2">
+          <span className="mb-1 block font-mono text-[10px] uppercase tracking-widest2 text-board-dim">
+            Tanggal & waktu beli
+          </span>
+          <input
+            type="datetime-local"
+            value={buyAt}
+            onChange={(e) => setBuyAt(e.target.value)}
+            required
+            className="w-full rounded-sm border border-board-line bg-board-panel2 px-2 py-2 font-mono text-xs text-board-ink outline-none focus:border-board-gold"
+          />
+        </label>
+        <label className="block">
+          <span className="mb-1 block font-mono text-[10px] uppercase tracking-widest2 text-board-dim">
+            Harga beli ({currencyLabel(currency)})
+          </span>
+          <input
+            type="number"
+            step={currency === "IDR" ? "1" : "0.01"}
+            min="0"
+            value={buyPrice}
+            onChange={(e) => setBuyPrice(e.target.value)}
+            required
+            className="w-full rounded-sm border border-board-line bg-board-panel2 px-2 py-2 font-mono text-xs text-board-ink outline-none focus:border-board-gold"
+          />
+        </label>
+        <label className="block">
+          <span className="mb-1 block font-mono text-[10px] uppercase tracking-widest2 text-board-dim">
+            Lot (opsional)
+          </span>
+          <input
+            type="number"
+            step="1"
+            min="1"
+            value={lots}
+            onChange={(e) => setLots(e.target.value)}
+            className="w-full rounded-sm border border-board-line bg-board-panel2 px-2 py-2 font-mono text-xs text-board-ink outline-none focus:border-board-gold"
+          />
+        </label>
+      </div>
+
+      {forecastTarget != null && (
+        <p className="mt-2 font-mono text-[10px] text-board-dim">
+          Target jual dari proyeksi {CHECK_HORIZON_DAYS} hari:{" "}
+          {fmtPrice(forecastTarget, currency)}
+        </p>
+      )}
+
+      <div className="mt-3 flex items-center gap-3">
+        <button
+          type="submit"
+          className="rounded-sm border border-board-gold bg-board-gold/10 px-4 py-2 font-mono text-[11px] uppercase tracking-widest2 text-board-gold hover:bg-board-gold/20"
+        >
+          Simpan posisi
+        </button>
+        {saved && (
+          <span className="font-mono text-[11px] text-board-up">Tersimpan</span>
+        )}
+      </div>
+    </form>
+  );
+}
+
+/**
+ * Live quotes for open positions — fetches /api/stock per unique symbol.
+ * Uses data already loaded for the active ticker to avoid a duplicate request.
+ */
+function useLiveQuotes(positions, activeData, activeMarket) {
+  const [quotes, setQuotes] = useState({});
+
+  const keys = useMemo(() => {
+    const seen = new Set();
+    const out = [];
+    for (const p of positions) {
+      const key = `${p.symbol}|${p.market}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      out.push({ symbol: p.symbol, market: p.market, key });
+    }
+    return out;
+  }, [positions]);
+
+  const load = useCallback(async () => {
+    const next = {};
+
+    if (activeData?.symbol) {
+      const activeKey = `${activeData.symbol}|${activeMarket}`;
+      next[activeKey] = {
+        status: "ready",
+        price: activeData.closes[activeData.closes.length - 1],
+        signal: activeData.signal,
+        currency: currencyForMarket(activeMarket, activeData.currency),
+      };
+    }
+
+    await Promise.all(
+      keys.map(async ({ symbol, market, key }) => {
+        if (next[key]) return;
+        try {
+          const params = new URLSearchParams({ symbol, market, range: "6mo" });
+          const res = await fetch(`/api/stock?${params.toString()}`);
+          const json = await res.json();
+          if (!res.ok) throw new Error(json.error || "Gagal memuat");
+          next[key] = {
+            status: "ready",
+            price: json.closes[json.closes.length - 1],
+            signal: json.signal,
+            currency: currencyForMarket(market, json.currency),
+          };
+        } catch (err) {
+          next[key] = { status: "error", error: err.message };
+        }
+      })
+    );
+
+    setQuotes(next);
+  }, [keys, activeData, activeMarket]);
+
+  useEffect(() => {
+    if (keys.length === 0) {
+      setQuotes({});
+      return;
+    }
+    setQuotes((prev) => {
+      const loading = {};
+      for (const { key } of keys) {
+        loading[key] = prev[key]?.status === "ready" ? prev[key] : { status: "loading" };
+      }
+      return loading;
+    });
+    load();
+  }, [keys, load]);
+
+  return quotes;
+}
+
+export default function PositionPanel({
+  data,
+  market,
+  positions,
+  onAdd,
+  onClose,
+  onRemove,
+  onSelect,
+}) {
+  const open = positions.filter((p) => p.status === "open");
+  const closed = positions.filter((p) => p.status === "closed").slice(0, 5);
+  const quotes = useLiveQuotes(open, data, market);
+  const activeSymbol = data?.symbol;
+
+  return (
+    <div className="space-y-4">
+      <BuyForm data={data} market={market} onAdd={onAdd} />
+
+      <div>
+        <h2 className="mb-2 font-mono text-[11px] uppercase tracking-widest2 text-board-dim">
+          Posisi saya
+        </h2>
+
+        {open.length === 0 && closed.length === 0 && (
+          <p className="font-mono text-xs text-board-dim">
+            Belum ada posisi. Forecast saham lalu isi form &quot;Catat beli&quot; di atas.
+          </p>
+        )}
+
+        {open.length > 0 && (
+          <div className="space-y-2">
+            {open.map((p) => (
+              <PositionCard
+                key={p.id}
+                position={p}
+                live={quotes[`${p.symbol}|${p.market}`]}
+                highlighted={activeSymbol === p.symbol}
+                onSelect={onSelect}
+                onClose={onClose}
+                onRemove={onRemove}
+              />
+            ))}
+          </div>
+        )}
+
+        {closed.length > 0 && (
+          <div className="mt-4">
+            <h3 className="mb-2 font-mono text-[10px] uppercase tracking-widest2 text-board-dim">
+              Riwayat terjual
+            </h3>
+            <div className="space-y-2">
+              {closed.map((p) => (
+                <PositionCard
+                  key={p.id}
+                  position={p}
+                  live={{
+                    status: "ready",
+                    price: p.sellPrice,
+                    signal: null,
+                    currency: currencyForMarket(p.market, p.currency),
+                  }}
+                  highlighted={false}
+                  onSelect={onSelect}
+                  onClose={onClose}
+                  onRemove={onRemove}
+                />
+              ))}
+            </div>
+          </div>
+        )}
+
+        <p className="mt-3 font-mono text-[10px] leading-relaxed text-board-dim">
+          Saran cek/jual adalah panduan dari sinyal & proyeksi app (horizon ~{CHECK_HORIZON_DAYS}{" "}
+          hari kalender), bukan jaminan. Data posisi hanya tersimpan di browser ini.
+        </p>
+      </div>
+    </div>
+  );
+}

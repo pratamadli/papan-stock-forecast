@@ -1,0 +1,22 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+::selection {
+  background: #d4a94a55;
+}
+
+* {
+  scrollbar-color: #243252 #0b1220;
+}
+
+.text-shadow-glow {
+  text-shadow: 0 0 18px rgba(212, 169, 74, 0.35);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-marquee,
+  .animate-flip {
+    animation: none !important;
+  }
+}

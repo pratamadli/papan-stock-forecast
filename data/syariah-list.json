@@ -1,29 +1,53 @@
 {
   "meta": {
-    "description": "Partial, manually-curated reference for Indonesia sharia stock status. This is NOT a complete Daftar Efek Syariah (DES) — it only contains the handful of tickers we could verify from public news coverage of BEI's periodic index evaluation. Anything not listed here returns 'unknown', not 'non-syariah'.",
+    "description": "Partial, manually-curated reference for Indonesia sharia stock status. This is NOT a complete Daftar Efek Syariah (DES) — it prioritises JII constituents and a few confirmed removals from public coverage of BEI's periodic index evaluation. Anything not listed here returns 'unknown', not 'non-syariah'.",
     "as_of": "2026-06-02",
     "effective_period": "2 Juni 2026 - 30 November 2026",
-    "primary_source_for_full_list": "https://ojk.go.id/id/kanal/syariah/data-dan-statistik/daftar-efek-syariah/default.aspx",
-    "secondary_source_for_full_list": "https://www.idx.co.id (halaman IDX Syariah / konstituen JII, JII70, ISSI)",
-    "how_to_update": "Download DES terbaru dari OJK (diterbitkan Mei & November) atau daftar konstituen JII/JII70/ISSI dari IDX, lalu tambahkan simbol ke array 'confirmed_syariah' atau 'confirmed_removed' di bawah. Ticker tanpa suffix .JK."
+    "ojk_decision": "KEP-21/D.04/2026 (DES Periode I 2026, efektif 1 Juni 2026)",
+    "primary_source_for_full_list": "https://ojk.go.id/id/kanal/syariah/data-dan-statistik/daftar-efek-syariah/Pages/Daftar-Efek-Syariah-KEP21D042026.aspx",
+    "secondary_source_for_full_list": "https://www.idx.co.id/id/idx-syariah/indeks-saham-syariah",
+    "jii_reference": "Konstituen JII periode 2 Juni – 30 November 2026 (30 ticker likuid)",
+    "how_to_update": "Download DES terbaru dari OJK (diterbitkan Mei & November) atau daftar konstituen JII/JII70/ISSI dari IDX, lalu tambahkan simbol ke array 'confirmed_syariah' atau 'confirmed_removed' di bawah. Ticker tanpa suffix .JK. Update meta.as_of / effective_period / ojk_decision setiap review."
   },
   "confirmed_syariah": [
-    "TLKM",
-    "BRMS",
-    "UNTR",
+    "AADI",
+    "ADMR",
+    "ADRO",
+    "ANTM",
     "ARCI",
+    "BKSL",
+    "BRIS",
+    "BRMS",
+    "BUMI",
+    "CPIN",
     "DEWA",
+    "ENRG",
+    "EXCL",
+    "ICBP",
+    "INDF",
+    "INKP",
+    "JPFA",
+    "KLBF",
+    "MBMA",
+    "MDKA",
+    "MEDC",
+    "PGAS",
+    "PTBA",
     "RAJA",
-    "WIFI",
-    "ADMR"
+    "RATU",
+    "TLKM",
+    "TPIA",
+    "UNTR",
+    "UNVR",
+    "WIFI"
   ],
   "confirmed_removed": [
     "ASII",
     "BRPT",
     "DSSA",
     "INCO",
+    "ISAT",
     "PANI",
-    "PGEO",
-    "ISAT"
+    "PGEO"
   ]
 }

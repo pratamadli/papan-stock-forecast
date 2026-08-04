@@ -36,10 +36,15 @@ module.exports = {
           "0%": { opacity: "0.3", transform: "translateY(-2px)" },
           "100%": { opacity: "1", transform: "translateY(0)" },
         },
+        fadeUp: {
+          "0%": { opacity: "0", transform: "translateY(10px)" },
+          "100%": { opacity: "1", transform: "translateY(0)" },
+        },
       },
       animation: {
         marquee: "marquee 40s linear infinite",
         flip: "flip 0.25s ease-out",
+        "fade-up": "fadeUp 0.45s ease-out both",
       },
     },
   },

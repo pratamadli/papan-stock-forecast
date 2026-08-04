@@ -6,15 +6,35 @@
 
 ## 1. Ringkasan Produk
 
-**Papan** adalah web app personal untuk memantau dan forecast saham —
-IDX (Indonesia) dan US — dengan sinyal BUY/SELL/HOLD berbasis indikator
-teknikal + proyeksi tren statistik, valuasi fundamental (harga wajar),
-jurnal posisi beli→cek→jual, plus opsi model machine learning
-(XGBoost) yang jalan lokal untuk perbandingan yang lebih advance.
+**Papan** adalah web app personal untuk memantau dan forecast saham
+IDX (Indonesia) & US, plus crypto (teknikal-only) — dengan sinyal
+BUY/SELL/HOLD berbasis indikator teknikal + proyeksi tren statistik,
+valuasi fundamental untuk saham (harga wajar), jurnal posisi
+beli→cek→jual, plus opsi model machine learning (XGBoost) lokal.
 
 Dibangun untuk pemakaian pribadi (bukan produk komersial/multi-user),
 di-deploy ke Vercel untuk versi utama, dengan tambahan opsional yang
 sengaja **tidak** di-deploy karena keterbatasan environment serverless.
+
+### 1.1 Identitas & konfigurasi proyek
+
+| Item | Nilai |
+|---|---|
+| Nama produk | **Papan** |
+| Repo / folder root | `papan-stock-forecast` |
+| npm package name (`package.json`) | `papan-saham-forecast` |
+| Proyek Vercel | `papan-stock-forecast` |
+| Production URL | https://papan-stock-forecast.vercel.app/ |
+| Production branch | `main` → production; `dev` (& lainnya) → preview |
+| Framework | Next.js 14 (App Router), React 18 |
+| Styling | Tailwind CSS (`tailwind.config.js`, `postcss.config.js`) |
+| Config Next | `next.config.js` — `reactStrictMode: true` |
+| Env wajib (Vercel / production) | tidak ada |
+| Env opsional (dev lokal) | `LOCAL_FORECAST_URL` (default `http://localhost:8000`) di `lib/localForecast.js` |
+| Git ignore | `node_modules`, `.next`, `.vercel`, `.env*.local`, `.env*` |
+
+Dokumen ini (`PRD.md`) dan `PRD-stock-forecast.md` isinya sama; yang kedua
+disimpan sebagai salinan bernama repo untuk referensi cepat.
 
 ---
 
@@ -32,7 +52,7 @@ juga perlu catatan kapan cek ulang dan kapan pertimbangkan jual.
 - Catat posisi beli (tanggal/waktu/harga) + saran cek ulang & jual
 - Transparan — setiap rekomendasi ada alasannya, bukan black box;
   istilah indikator punya tooltip penjelasan
-- Mata uang jelas: IDX = Rupiah (`Rp`), US = USD (`$`)
+- Mata uang jelas: IDX = Rupiah (`Rp`); US & CRYPTO = USD (`$`) dengan opsi tampilan Rupiah (kurs Yahoo USD/IDR)
 - Ruang buat eksperimen metode forecasting lebih canggih tanpa harus
   bongkar app utama
 
@@ -57,21 +77,28 @@ publik/banyak orang sekaligus.
 
 | Fitur | Status | Keterangan |
 |---|---|---|
-| Cari & forecast satu ticker | ✅ | IDX (auto suffix `.JK`) & US |
+| Cari & forecast satu ticker | ✅ | IDX (`.JK`), US, CRYPTO (`*-USD`) |
 | Autocomplete ticker | ✅ | Via Yahoo Finance search endpoint |
 | Chart harga + SMA20/50 + proyeksi tren | ✅ | SVG custom, tanpa library chart eksternal |
 | Legend warna garis chart | ✅ | Close, SMA20, SMA50, proyeksi ~10h, pembatas hari ini |
 | Hover nilai di chart | ✅ | Crosshair + tooltip tanggal/close/SMA/proyeksi (mouse & touch) |
-| Sinyal BUY/SELL/HOLD + alasan | ✅ | Rule-based, skor dari 4 indikator |
-| Tooltip penjelasan indikator | ✅ | SMA20, SMA50, RSI14, MACD, CAGR |
+| Sinyal BUY/SELL/HOLD + alasan | ✅ | Rezim-aware + filter volume/ATR; ambang lebih ketat |
+| Keyakinan (confidence) sinyal | ✅ | Kesepakatan indikator × kekuatan skor vs ambang |
+| Hit-rate backtest sinyal (deployed) | ✅ | Walk-forward BUY/SELL ~10h di `/api/stock` |
+| Relative strength vs indeks | ✅ | `^JKSE` (IDX) / `SPY` (US), best-effort |
+| Tooltip penjelasan indikator | ✅ | SMA/RSI/MACD/BB/rezim/volume/ATR/RS/hit-rate/CAGR |
 | Watchlist multi-ticker | ✅ | Disimpan di `localStorage`, personal per-device |
-| Jurnal posisi beli → cek → jual | ✅ | Catat beli, saran cek ~10 hari, saran jual, P&L |
+| Ekspor CSV watchlist | ✅ | Snapshot harga + sinyal + syariah |
+| Jurnal posisi beli → cek → jual | ✅ | Catat beli, saran cek ~10 hari bursa, saran jual, P&L |
+| Override target jual / tanggal cek | ✅ | Saat catat beli atau edit kartu posisi |
+| Kalender libur bursa (cek lagi) | ✅ | Weekend + libur IDX/US di `lib/marketCalendar.js` |
+| Ekspor CSV posisi | ✅ | Jurnal + P&L + sinyal live + flag manual |
 | Valuasi fundamental + harga wajar | ✅ | CAGR, MoS, tabel proyeksi + keterangan per tahun |
-| Format mata uang per bursa | ✅ | IDX → `Rp`, US → `$` |
-| Forecast lanjutan (XGBoost) | ✅ (lokal only) | Servis Python terpisah, opsional |
+| Format mata uang per bursa | ✅ | IDX → `Rp`; US & CRYPTO → `$` (+ toggle tampilan Rp via kurs USD/IDR) |
+| Crypto (teknikal-only) | ✅ | Market `CRYPTO`; tanpa fundamental; syariah N/A; cek 24/7 |
+| Forecast lanjutan (XGBoost) | ✅ (lokal only) | Servis Python; di-skip untuk CRYPTO di API |
 | Backtest walk-forward | ✅ (lokal only) | Bandingkan XGBoost vs baseline SMA |
-| Syariah screener | ✅ | Cek status DES/ISSI dari referensi lokal (bukan live scraping) |
-| Crypto sebagai market ketiga | ❌ (backlog) | MVP teknikal-only direncanakan di §13; belum diimplementasikan |
+| Syariah screener | ✅ | DES lokal untuk IDX; US/CRYPTO → not-applicable |
 | Live data resmi BEI | ❌ | Nggak ada API publik gratis dari BEI, lihat §9 |
 
 ---
@@ -103,7 +130,9 @@ publik/banyak orang sekaligus.
 - **Python**: disarankan 3.11–3.12 (venv); Python 3.14 terlalu baru untuk
   pin dependency saat ini
 
-**Hosting**: Vercel (app utama, gratis untuk pemakaian personal)
+**Hosting**: Vercel — proyek `papan-stock-forecast` (app utama, gratis
+untuk pemakaian personal). Folder `.vercel` hasil `vercel link` tidak
+di-commit (ada di `.gitignore`).
 
 ---
 
@@ -145,7 +174,8 @@ Ini yang bikin app tetap 100% jalan normal saat di-deploy ke Vercel.
 **Dua port saat develop lokal:**
 - `http://localhost:3000` — UI + forecast utama (wajib dipakai user)
 - `http://localhost:8000` — mesin hitung XGBoost (opsional); dipanggil
-  server-side dari Next.js, bukan dibuka langsung oleh user
+  server-side dari Next.js, bukan dibuka langsung oleh user.
+  Override URL lewat env `LOCAL_FORECAST_URL` bila port/host beda.
 
 ---
 
@@ -169,6 +199,7 @@ hijau di chart (default proyeksi 10 hari).
 
 **Horizon baca UI:**
 - Sinyal BUY/SELL/HOLD + garis proyeksi chart → ~**10 hari** bursa
+- Jadwal "cek lagi" posisi → default **10 hari bursa** (bukan kalender)
 - Panel XGBoost (lokal) → arah naik/turun ~**5 hari**
 - Valuasi fundamental → proyeksi **tahunan** (bukan harian)
 - Form "Rentang" (6mo/1y/2y) hanya mengatur panjang **histori**, bukan
@@ -192,23 +223,33 @@ tooltip berisi tanggal (atau `+Nh proyeksi`), nilai close, SMA20, SMA50;
 di zona forecast hanya nilai proyeksi. Tidak memakai library chart
 eksternal — hitung index dari posisi X terhadap `totalPoints`.
 
-### 7.2 Sinyal BUY/SELL/HOLD — skor gabungan 4 indikator
+### 7.2 Sinyal BUY/SELL/HOLD — selektif, rezim-aware (deployable)
 
-| Indikator | Bullish (+skor) | Bearish (−skor) |
-|---|---|---|
-| SMA20 vs SMA50 | SMA20 > SMA50 → +1 | SMA20 < SMA50 → −1 |
-| RSI(14) | <30 oversold → +1.2 | >70 overbought → −1.2 |
-| MACD histogram | golden cross → +1.3 | death cross → −1.3 |
-| Arah proyeksi Holt's | naik >1% (10 hari) → +1 | turun >1% → −1 |
+File: `lib/forecast.js`. Input: `closes` + `highs`/`lows`/`volumes` +
+opsional `indexCloses` (benchmark).
 
-**Threshold aksi**: skor ≥ 1.5 → **BUY**, skor ≤ −1.5 → **SELL**, di
-antaranya → **HOLD**. Tiap alasan yang berkontribusi ke skor ditampilkan
-sebagai teks di UI (bukan cuma angka), biar transparan kenapa sinyalnya
-begitu.
+**Rezim** (`|SMA20−SMA50| / ATR14`):
+- `trending` (≥2) → bobot SMA/MACD/Holt/RS naik; RSI/BB turun
+- `sideways` (≤1) → bobot RSI/BB naik; tren turun
+- `mixed` → bobot seimbang
 
-UI menampilkan nilai SMA20, SMA50, RSI14, dan MACD histogram di papan
-sinyal. Penjelasan istilah ada di tooltip (`components/InfoTip.js` +
-`lib/indicatorTips.js`) untuk SMA20, SMA50, RSI14, MACD, dan CAGR.
+**Komponen skor** (bobot tergantung rezim, lihat `WEIGHTS` di kode):
+SMA cross, RSI, MACD (cross atau konfirmasi ≥2 bar), Holt (live) /
+slope SMA20 (backtest cepat), Bollinger %B, relative strength vs
+indeks (`^JKSE` / `SPY`).
+
+**Filter & ambang:**
+- Ambang default **±2.5** (dulu ±1.5); **±3.2** jika ATR% > 4.5%
+- Volume &lt; 85% SMA20 volume → paksa **HOLD** meski skor tembus ambang
+- Confidence = 0.55×agreement + 0.45×strength (bukan probabilitas harga)
+
+**Backtest sinyal (ikut deploy):** `backtestSignal()` walk-forward di
+histori ticker yang sama; BUY hit jika `close[i+10] > close[i]`, SELL
+sebaliknya. Hasil di `signal.backtest` (hitRate, buy/sell breakdown,
+holdShare). Ditampilkan di `SignalBoard`.
+
+UI menampilkan rezim, keyakinan, hit-rate, volume ratio, ATR%, benchmark,
+plus indikator klasik. Tooltip di `lib/indicatorTips.js`.
 
 ### 7.3 Syariah Screener (`lib/syariah.js`)
 
@@ -221,11 +262,13 @@ syariah tiap emiten tergantung sektor usaha & rasio keuangan tertentu.
   konstituen JII/JII70/ISSI. Karena keduanya bukan endpoint publik yang
   bisa dipanggil live, app ini **tidak** melakukan scraping otomatis
   (konsisten dengan keputusan sebelumnya soal endpoint tak resmi IDX).
-- **Implementasi**: referensi lokal manual di `data/syariah-list.json`,
-  berisi ticker yang sudah dikonfirmasi masuk (`confirmed_syariah`) atau
-  baru saja dikeluarkan (`confirmed_removed`) dari daftar syariah, dengan
-  metadata `as_of` dan sumber. Ticker yang belum ada di file ini
-  ditandai **"unknown"**, bukan ditebak sebagai syariah/non-syariah.
+- **Implementasi**: referensi lokal manual di `data/syariah-list.json`.
+  Periode saat ini: **2 Juni – 30 November 2026** (OJK
+  `KEP-21/D.04/2026`). `confirmed_syariah` diisi 30 konstituen JII;
+  `confirmed_removed` diisi ticker yang keluar dari JII pada review itu
+  (ASII, BRPT, DSSA, INCO, ISAT, PANI, PGEO). Ticker yang belum ada di
+  file ini ditandai **"unknown"**, bukan ditebak sebagai
+  syariah/non-syariah.
 - **Update**: manual, mengikuti jadwal rilis DES OJK — instruksinya ada
   di `meta.how_to_update` dalam file JSON itu sendiri.
 - **Cakupan**: cuma berlaku untuk saham IDX (kriteria DES/OJK). Saham US
@@ -276,21 +319,41 @@ app menyimpan di `localStorage` key `papan.positions.v1`.
 **Data per posisi:**
 - `id`, `symbol`, `market`, `currency` (`IDR` kalau IDX, `USD` kalau US)
 - `buyAt`, `buyPrice`, `lots` (opsional)
-- Snapshot: `checkAt` (= beli + 10 hari kalender), `targetPrice`
-  (proyeksi Holt hari ke-10 saat dicatat)
+- Snapshot: `checkAt` (default = beli + 10 **hari bursa** via
+  `lib/marketCalendar.js`), `checkAtManual`, `targetPrice` (default
+  proyeksi Holt hari ke-10), `targetManual`
 - Status `open` | `closed`; kalau closed: `sellAt`, `sellPrice`
+
+**Override:** user boleh ganti target jual dan/atau tanggal cek saat
+catat beli (checkbox override) atau lewat tombol "Ubah target / cek"
+di kartu posisi terbuka. "Reset cek" mengembalikan `checkAt` ke
++10 hari bursa dari `buyAt`.
 
 **Logic saran:**
 
 | Info | Cara hitung |
 |---|---|
-| Cek lagi | `checkAt`; status belum / hari ini / lewat |
+| Cek lagi | `checkAt`; status belum / hari ini / lewat; label tampilkan · manual kalau di-override |
 | Target jual | `targetPrice` vs harga sekarang |
 | Saran aksi | sinyal live SELL → pertimbangkan jual; harga ≥ target → target tercapai; sebelum `checkAt` → tahan, cek lagi pada … |
 | P&L | `(hargaSekarang − buyPrice) / buyPrice` (+ nominal × lots) |
 
-Bukan eksekusi order. Saran cek/jual adalah panduan; +10 hari adalah
-hari kalender sederhana (bukan kalender libur bursa resmi).
+Bukan eksekusi order. Saran cek/jual adalah panduan. Default +10 hari
+memakai hari bursa (weekend + libur IDX/US di `marketCalendar.js`);
+daftar libur dikurasi manual untuk 2025–2027 dan perlu di-update
+bergantung pengumuman BEI/NYSE.
+
+### 7.6 Ekspor CSV
+
+File: `lib/exportCsv.js`
+
+- **Watchlist**: tombol di `Watchlist.js` — kolom symbol, market, price,
+  currency, signal, score, syariah, exportedAt.
+- **Posisi**: tombol di `PositionPanel.js` — kolom jurnal lengkap plus
+  currentPrice, signal, pnlPct, pnlNominal, flag `checkAtManual` /
+  `targetManual`.
+- File diunduh di browser (BOM UTF-8); data tetap hanya di `localStorage`
+  sampai user ekspor.
 
 ---
 
@@ -377,7 +440,7 @@ jaringan kantor: `SSLCertVerificationError` saat `yfinance` hit
 ## 10. Struktur Folder
 
 ```
-stock-forecast/
+papan-stock-forecast/
 ├── app/
 │   ├── page.js                 # UI utama (search, chart, signal, watchlist, posisi)
 │   ├── layout.js                # Root layout + font
@@ -390,23 +453,25 @@ stock-forecast/
 │   ├── PriceChart.js             # Chart SVG + legend warna + hover/tooltip nilai
 │   ├── SignalBoard.js            # Papan BUY/SELL/HOLD + indikator + tooltip
 │   ├── FundamentalPanel.js       # Panel CAGR/harga wajar/Margin of Safety
-│   ├── PositionPanel.js          # Form catat beli + daftar posisi + saran cek/jual
+│   ├── PositionPanel.js          # Form catat beli + override + CSV + saran cek/jual
 │   ├── InfoTip.js                # Tooltip penjelasan istilah
 │   ├── SyariahBadge.js           # Badge status syariah
 │   ├── AdvancedSignal.js         # Panel XGBoost (muncul kalau servis lokal nyala)
-│   └── Watchlist.js              # Daftar saham dipantau
+│   └── Watchlist.js              # Daftar saham dipantau + ekspor CSV
 ├── lib/
 │   ├── yahoo.js                  # Fetch data + fundamental + search dari Yahoo Finance
-│   ├── forecast.js               # Holt's trend + indikator + skor sinyal
+│   ├── forecast.js               # Rezim/volume/ATR/RS + skor + backtestSignal
 │   ├── fundamentalValuation.js   # CAGR + harga wajar per tahun + Margin of Safety
 │   ├── positionAdvice.js         # Logic cek lagi / saran jual / P&L
-│   ├── indicatorTips.js          # Teks tooltip SMA/RSI/MACD/CAGR
+│   ├── marketCalendar.js         # Hari bursa IDX/US (weekend + libur)
+│   ├── exportCsv.js              # Helper unduh CSV watchlist & posisi
+│   ├── indicatorTips.js          # Teks tooltip SMA/RSI/MACD/BB/CAGR
 │   ├── syariah.js                # Cek status syariah dari referensi lokal
 │   ├── localForecast.js          # Client buat panggil servis Python (best-effort)
 │   ├── useWatchlist.js           # Hook localStorage watchlist
-│   └── usePositions.js           # Hook localStorage jurnal posisi
+│   └── usePositions.js           # Hook localStorage jurnal posisi (+ update override)
 ├── data/
-│   └── syariah-list.json         # Referensi syariah manual (update sesuai jadwal DES OJK)
+│   └── syariah-list.json         # Referensi JII/DES manual (KEP-21/D.04/2026)
 └── local-forecast/                # Servis Python, TIDAK di-deploy
     ├── app.py                     # FastAPI endpoints (+ truststore)
     ├── data.py                    # Fetch Yahoo chart API (+ truststore)
@@ -439,8 +504,10 @@ uvicorn app:app --reload --port 8000   # http://localhost:8000
 Di macOS, perintahnya sering `pip3` / `python3` kalau belum pakai venv.
 Setelah venv aktif, `pip` tersedia di dalam venv.
 
-**Deploy:** push ke GitHub → import di vercel.com/new → deploy (tanpa
-env var wajib). Servis `local-forecast/` tidak ikut di-deploy.
+**Deploy:** push repo `papan-stock-forecast` ke GitHub → import /
+`vercel link` ke proyek Vercel `papan-stock-forecast` → deploy (tanpa
+env var wajib; jangan set `LOCAL_FORECAST_URL` di production). Servis
+`local-forecast/` tidak ikut di-deploy.
 
 ---
 
@@ -467,23 +534,23 @@ env var wajib). Servis `local-forecast/` tidak ikut di-deploy.
   kompetisi, risiko sektor, dll).
 - Jurnal posisi & watchlist hanya di browser (`localStorage`) — hapus
   data browser = hilang; tidak sinkron antar perangkat.
-- Jadwal "cek lagi" (+10 hari) memakai hari kalender, bukan kalender
-  libur bursa resmi.
+- Jadwal "cek lagi" default memakai hari bursa (weekend + libur
+  terkurasi), tapi daftar libur tidak selalu 100% sinkron dengan
+  pengumuman resmi BEI/NYSE — override manual tersedia.
 
 ---
 
 ## 13. Ide Pengembangan Selanjutnya
 
-- Bollinger Bands sebagai indikator tambahan di sinyal utama
+- Kalibrasi ulang `WEIGHTS` / ambang dari agregat hit-rate banyak ticker
+  (saat ini prior hardcoded di `forecast.js`)
 - Ganti/tambah baseline forecast statistik (ARIMA/Prophet) sebagai
-  pembanding lain di sisi lokal
-- Ekspor histori watchlist + posisi + sinyal ke CSV
+  pembanding lain di sisi lokal (bukan prioritas deploy)
 - Notifikasi (misal lewat cron lokal) kalau sinyal watchlist / posisi
   berubah (mis. jadi SELL atau lewat `checkAt`)
-- Target jual / tanggal cek yang bisa di-override manual per posisi
-- **Crypto (MVP teknikal-only, backlog)**: market ketiga `CRYPTO` via
-  Yahoo (`BTC-USD`, dll.) — reuse sinyal teknikal/chart/posisi; **tanpa**
-  valuasi fundamental (EPS/P/E tidak relevan); syariah `not-applicable`
-  dengan catatan khusus; currency USD; disclaimer volatilitas. Jangan
-  campur ke flow IDX/US tanpa selector eksplisit. Metrik on-chain /
-  kalibrasi skor khusus crypto di luar scope MVP.
+- Perbarui daftar libur `marketCalendar.js` tiap tahun dari kalender
+  resmi BEI / NYSE
+- Metrik on-chain / kalibrasi skor khusus crypto (di luar MVP teknikal
+  yang sudah ada)
+- Autocomplete crypto yang lebih lengkap (whitelist ticker populer) jika
+  Yahoo search sparsely

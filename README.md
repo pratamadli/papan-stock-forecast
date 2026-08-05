@@ -15,7 +15,7 @@ API key), lalu kasih sinyal BUY/SELL/HOLD.
 | Production URL | https://papan-stock-forecast.vercel.app/ |
 | Deploy branches | `main` → production; `dev` → preview |
 | Stack | Next.js 14 (App Router), React 18, Tailwind CSS, shadcn/ui |
-| Versi | `1.1.1` (`package.json` → footer `Papan v…`) |
+| Versi | `1.1.2` (`package.json` → footer `Papan v…`) |
 | UI | Dark fintech glassmorphism — teal accent, sinyal hijau/kuning/merah, landing trust/security/vault |
 | Analytics | `@vercel/analytics` di root layout |
 | Favicon | `app/icon.svg` (+ `apple-icon.svg`) — sparkles mark |
@@ -36,8 +36,8 @@ API key), lalu kasih sinyal BUY/SELL/HOLD.
 - **Sinyal beli/jual (selektif)**: skor rezim-aware dari SMA20/SMA50,
   RSI(14), MACD (konfirmasi multi-bar), Bollinger (%B), proyeksi Holt,
   relative strength vs indeks (`^JKSE` / `SPY`), plus filter volume & ATR.
-  Ambang BUY/SELL lebih ketat (±2.5, atau ±3.2 saat volatilitas tinggi)
-  supaya lebih sering HOLD daripada sinyal palsu.
+  Ambang BUY/SELL seimbang (±2.0, atau ±2.75 saat volatilitas tinggi) —
+  lebih agresif dari ±2.5, tetap lebih selektif dari legacy ±1.5.
 - **Keyakinan & hit-rate**: panel sinyal menampilkan confidence (kesepakatan
   indikator) dan walk-forward hit-rate historis BUY/SELL ~10 hari pada
   ticker yang sama (dihitung di server, ikut ter-deploy).
@@ -45,6 +45,24 @@ API key), lalu kasih sinyal BUY/SELL/HOLD.
 Semua logic ada di `lib/forecast.js` (indikator + skor + backtest) dan
 `lib/yahoo.js` (pengambilan data) — silakan diutak-atik bobot/ambang di
 `WEIGHTS` / `ACTION_THRESHOLD`.
+
+## Leaderboard sinyal
+
+Section **Top 10 BELI / JUAL / TAHAN** per tab market (IDX · US · CRYPTO),
+di bawah form search (komponen `SignalLeaders`).
+
+| Item | Detail |
+|---|---|
+| Universe | Curated likuid di `data/signal-universe.json` (~30–40/market) — **bukan** seluruh bursa |
+| Engine | Skor sama dengan forecast (`lib/forecast.js`, ambang ±2.0 / ±2.75) |
+| Ranking BELI | Skor tertinggi di antara `BUY` |
+| Ranking JUAL | Skor terendah di antara `SELL` |
+| Ranking TAHAN | `\|skor\|` tertinggi di antara `HOLD` (paling mendekati ambang) |
+| API | `GET /api/leaders?market=IDX\|US\|CRYPTO&range=6mo` (+ `refresh=1` paksa ulang) |
+| Cache | ~15 menit di memory server |
+| Interaksi | Klik symbol → isi ticker + jalankan forecast |
+
+Load pertama bisa 15–40 detik (batch Yahoo); reload berikutnya biasanya dari cache.
 
 ## Watchlist
 
@@ -171,7 +189,7 @@ Pembaruan di atas 1.0.0:
 - UI refresh (glass panel, atmosfer, polish autocomplete dropdown)
 - Footer versi app (`Papan v…` dari `package.json`)
 
-### 1.1.1 *(latest)*
+### 1.1.1
 
 Pembaruan di atas 1.1.0:
 
@@ -183,6 +201,14 @@ Pembaruan di atas 1.1.0:
 - **Vercel Analytics** (`@vercel/analytics`) di root layout
 - Favicon / Apple touch icon sparkles (`app/icon.svg`, `app/apple-icon.svg`)
   menggantikan ikon default Vercel di tab browser
+
+### 1.1.2 *(latest)*
+
+- **Leaderboard sinyal**: Top 10 BELI / JUAL / TAHAN per market (IDX · US ·
+  CRYPTO) dari universe curated di `data/signal-universe.json`
+- API `GET /api/leaders` (batch score + cache ~15 menit)
+- Ambang sinyal seimbang **±2.0** / **±2.75** (volatil)
+- Klik symbol di tabel → buka forecast ticker tersebut
 
 ## Catatan
 

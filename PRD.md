@@ -26,7 +26,7 @@ sengaja **tidak** di-deploy karena keterbatasan environment serverless.
 | Proyek Vercel | `papan-stock-forecast` |
 | Production URL | https://papan-stock-forecast.vercel.app/ |
 | Production branch | `main` → production; `dev` (& lainnya) → preview |
-| Versi app | `1.1.1` (`package.json`; footer `Papan v…`) |
+| Versi app | `1.1.2` (`package.json`; footer `Papan v…`) |
 | Framework | Next.js 14 (App Router), React 18 |
 | Styling | Tailwind CSS + **shadcn/ui** — dark fintech glassmorphism (teal accent) |
 | Config Next | `next.config.js` — `reactStrictMode: true` |
@@ -46,6 +46,7 @@ disimpan sebagai salinan bernama repo untuk referensi cepat.
 | `1.0.0` | Rilis dasar IDX/US, watchlist, posisi, syariah, fundamental, XGBoost lokal |
 | `1.1.0` | CRYPTO, toggle USD/IDR, sinyal selektif, kalender libur, CSV, override target |
 | `1.1.1` | shadcn + dark glass UI, landing showcase, warna sinyal H/K/M, Analytics, favicon |
+| `1.1.2` | Leaderboard Top 10 BELI/JUAL/TAHAN per market (universe curated) + ambang ±2.0 |
 
 Lihat **Version Update Log** di `README.md` untuk detail penuh.
 
@@ -109,6 +110,7 @@ publik/banyak orang sekaligus.
 | Valuasi fundamental + harga wajar | ✅ | CAGR, MoS, tabel proyeksi + keterangan per tahun |
 | Format mata uang per bursa | ✅ | IDX → `Rp`; US & CRYPTO → `$` (+ toggle tampilan Rp via kurs USD/IDR) |
 | Crypto (teknikal-only) | ✅ | Market `CRYPTO`; tanpa fundamental; syariah N/A; cek 24/7 |
+| Leaderboard Top 10 sinyal | ✅ | BELI/JUAL/TAHAN per IDX·US·CRYPTO; universe `signal-universe.json`; cache 15m |
 | Landing showcase (UI) | ✅ | Chart preview, trust, security, vault — tanpa ubah fungsi |
 | Warna sinyal BELI/TAHAN/JUAL | ✅ | Hijau / kuning (`board-hold`) / merah |
 | UI shadcn + glassmorphism | ✅ | Card/Button/Badge/Input; tema dark fintech |
@@ -163,29 +165,24 @@ di-commit (ada di `.gitignore`).
 ┌─────────────────────────────────────────────────────────────┐
 │                     Browser (React UI)                       │
 │  - Landing glass UI + form cari ticker / bursa / rentang     │
+│  - Leaderboard Top 10 BELI/JUAL/TAHAN (SignalLeaders)        │
 │  - Watchlist + jurnal posisi (baca/tulis localStorage)       │
 │  - Render chart, signal board, fundamental, advanced panel   │
 │  - Vercel Analytics (page views)                             │
-└───────────────┬───────────────────────────────────────────────┘
-                │ fetch /api/stock?symbol=...&market=...
-                ▼
-┌─────────────────────────────────────────────────────────────┐
-│              Next.js API Route (server, Vercel)               │
-│  1. fetchHistory()   → Yahoo Finance chart endpoint            │
-│  2. buildSignal()    → hitung SMA/RSI/MACD/Holt's, skor sinyal │
-│  3. fundamental + syariah                                      │
-│  4. fetchAdvancedSignal() → coba panggil localhost:8000        │
-│     (silent fail kalau nggak ada — normal di Vercel)           │
-│  5. Gabung semua → response JSON ke browser                    │
-└───────────────┬─────────────────────────────┬──────────────────┘
-                │ (selalu)                     │ (opsional, lokal saja)
-                ▼                               ▼
-      Yahoo Finance API                 Python/FastAPI service
-      (query1/query2.finance             (localhost:8000)
-       .yahoo.com)                       - fetch chart API (+ truststore)
-                                          - build features
-                                          - train/load XGBoost
-                                          - predict + backtest
+└───────┬───────────────────────────────┬──────────────────────┘
+        │ /api/stock                    │ /api/leaders?market=
+        ▼                               ▼
+┌──────────────────────────┐  ┌────────────────────────────────┐
+│  stock/route.js          │  │  leaders/route.js              │
+│  history + sinyal +      │  │  universe JSON → batch Yahoo   │
+│  fundamental + syariah   │  │  buildSignal → top 10/action   │
+│  + fx + advanced (lokal) │  │  cache ~15m (tanpa fund./XGB)  │
+└───────────┬──────────────┘  └───────────────┬────────────────┘
+            │                                 │
+            └────────────────┬────────────────┘
+                             ▼
+      Yahoo Finance API              Python/FastAPI (opsional lokal)
+      (query1/query2…)               localhost:8000 — XGBoost only
 ```
 
 **Poin penting**: app utama tidak pernah *bergantung* pada servis Python.
@@ -261,7 +258,7 @@ slope SMA20 (backtest cepat), Bollinger %B, relative strength vs
 indeks (`^JKSE` / `SPY`).
 
 **Filter & ambang:**
-- Ambang default **±2.5** (dulu ±1.5); **±3.2** jika ATR% > 4.5%
+- Ambang default **±2.0** (seimbang; dulu ±2.5 ketat / ±1.5 longgar); **±2.75** jika ATR% > 4.5%
 - Volume &lt; 85% SMA20 volume → paksa **HOLD** meski skor tembus ambang
 - Confidence = 0.55×agreement + 0.45×strength (bukan probabilitas harga)
 
@@ -272,6 +269,26 @@ holdShare). Ditampilkan di `SignalBoard`.
 
 UI menampilkan rezim, keyakinan, hit-rate, volume ratio, ATR%, benchmark,
 plus indikator klasik. Tooltip di `lib/indicatorTips.js`.
+
+### 7.2.1 Leaderboard sinyal (`/api/leaders` + `SignalLeaders`)
+
+Papan perbandingan cepat antar ticker likuid — **bukan** scan seluruh
+bursa (batasan Yahoo rate-limit + timeout Vercel).
+
+| Aspek | Spesifikasi |
+|---|---|
+| Universe | `data/signal-universe.json` — array `IDX` / `US` / `CRYPTO` (~30–40 likuid) |
+| Endpoint | `GET /api/leaders?market=IDX\|US\|CRYPTO&range=6mo` (`refresh=1` bypass cache) |
+| Scoring | `fetchHistory` + `buildSignal` (sama dengan forecast); 1× benchmark RS per market |
+| Parallel | Batch concurrency 6; `maxDuration` 60s |
+| Cache | In-memory per `market\|range`, TTL ~15 menit |
+| BELI | Top 10 `action===BUY` by skor ↓ |
+| JUAL | Top 10 `action===SELL` by skor ↑ (paling negatif dulu) |
+| TAHAN | Top 10 `action===HOLD` by `\|skor\|` ↓ (mendekati ambang) |
+| UI | Tab market + 3 tabel; klik symbol → `runForecast` di `page.js` |
+| Catatan UI | Menampilkan `scanned/universeSize`; jujur “bukan seluruh bursa” |
+
+Edit universe = edit JSON lalu deploy/restart; tidak perlu DB.
 
 ### 7.3 Syariah Screener (`lib/syariah.js`)
 
@@ -471,9 +488,11 @@ papan-stock-forecast/
 │   ├── icon.svg / apple-icon.svg # Favicon sparkles (tab browser)
 │   └── api/
 │       ├── stock/route.js       # history + sinyal + fundamental + syariah + fx + advanced
+│       ├── leaders/route.js     # Top 10 BELI/JUAL/TAHAN per market (batched)
 │       └── search/route.js      # Autocomplete ticker
 ├── components/
 │   ├── ui/                       # shadcn: button, card, badge, input, separator
+│   ├── SignalLeaders.js          # Tabel leaderboard sinyal + tab market
 │   ├── LandingShowcase.js        # Landing trust / security / vault (UI only)
 │   ├── TickerTape.js             # Marquee harga berjalan
 │   ├── PriceChart.js             # Chart SVG + legend warna + hover/tooltip nilai
@@ -500,6 +519,7 @@ papan-stock-forecast/
 │   └── usePositions.js           # Hook localStorage jurnal posisi (+ update override)
 ├── components.json               # Config shadcn/ui
 ├── data/
+│   ├── signal-universe.json      # Universe curated untuk leaderboard
 │   └── syariah-list.json         # Referensi JII/DES manual (KEP-21/D.04/2026)
 └── local-forecast/                # Servis Python, TIDAK di-deploy
     ├── app.py                     # FastAPI endpoints (+ truststore)

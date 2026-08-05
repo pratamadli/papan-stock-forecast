@@ -11,6 +11,7 @@ import FundamentalPanel from "../components/FundamentalPanel";
 import SyariahBadge from "../components/SyariahBadge";
 import PositionPanel from "../components/PositionPanel";
 import LandingShowcase from "../components/LandingShowcase";
+import SignalLeaders from "../components/SignalLeaders";
 import { useWatchlist } from "../lib/useWatchlist";
 import { usePositions } from "../lib/usePositions";
 import { buildDisplayView } from "../lib/displayMoney";
@@ -131,6 +132,12 @@ export default function Home() {
   }
 
   function selectFromPosition(entry) {
+    setSymbolQuiet(toInputSymbol(entry.symbol, entry.market));
+    setMarket(entry.market);
+    runForecast(entry.symbol, entry.market);
+  }
+
+  function selectFromLeader(entry) {
     setSymbolQuiet(toInputSymbol(entry.symbol, entry.market));
     setMarket(entry.market);
     runForecast(entry.symbol, entry.market);
@@ -307,6 +314,10 @@ export default function Home() {
             <CardContent className="p-4 text-sm text-board-down">{error}</CardContent>
           </Card>
         )}
+
+        <div className="mt-10">
+          <SignalLeaders market={market} onSelect={selectFromLeader} />
+        </div>
 
         {watchlist.hydrated && (
           <div className="mt-10 animate-fade-up">

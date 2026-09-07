@@ -15,7 +15,7 @@ API key), lalu kasih sinyal BUY/SELL/HOLD.
 | Production URL | https://papan-stock-forecast.vercel.app/ |
 | Deploy branches | `main` → production; `dev` → preview |
 | Stack | Next.js 14 (App Router), React 18, Tailwind CSS, shadcn/ui |
-| Versi | `1.1.3` (`package.json` → footer `Papan v…`) |
+| Versi | `1.1.4` (`package.json` → footer `Papan v…`) |
 | UI | Dark fintech glassmorphism — teal accent, sinyal hijau/kuning/merah, landing trust/security/vault |
 | Analytics | `@vercel/analytics` di root layout |
 | Favicon | `app/icon.svg` (+ `apple-icon.svg`) — sparkles mark |
@@ -94,6 +94,8 @@ Default tanggal cek = +10 **hari bursa** untuk IDX/US (weekend + libur
 dilewati), atau +10 **hari kalender** untuk CRYPTO. Target jual & tanggal
 cek bisa di-override. Harga live posisi juga memakai `/api/quote` dengan
 concurrency terbatas, jadi posisi tersimpan tidak mengganggu forecast utama.
+Daftar posisi terbuka/distutup di-memoize agar refresh quote tidak berulang
+tanpa perubahan posisi.
 Tombol **Ekspor CSV** untuk backup jurnal.
 
 ## Syariah Screener
@@ -207,7 +209,15 @@ Pembaruan di atas 1.1.0:
 - Favicon / Apple touch icon sparkles (`app/icon.svg`, `app/apple-icon.svg`)
   menggantikan ikon default Vercel di tab browser
 
-### 1.1.3 *(latest)*
+### 1.1.4 *(latest)*
+
+- Fix loop live quote di jurnal posisi: daftar posisi terbuka/distutup
+  sekarang di-memoize sehingga `setQuotes` tidak memicu fetch `/api/quote`
+  berulang tanpa perubahan posisi
+- Menjaga posisi tersimpan tetap memakai endpoint ringan `/api/quote` tanpa
+  mengganggu forecast utama
+
+### 1.1.3
 
 - **Optimasi API & stabilitas Yahoo**: retry 3x, timeout per attempt,
   fallback host `query1` → `query2`, dan cache pendek di `lib/yahoo.js`

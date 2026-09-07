@@ -26,7 +26,7 @@ sengaja **tidak** di-deploy karena keterbatasan environment serverless.
 | Proyek Vercel | `papan-stock-forecast` |
 | Production URL | https://papan-stock-forecast.vercel.app/ |
 | Production branch | `main` → production; `dev` (& lainnya) → preview |
-| Versi app | `1.1.3` (`package.json`; footer `Papan v…`) |
+| Versi app | `1.1.4` (`package.json`; footer `Papan v…`) |
 | Framework | Next.js 14 (App Router), React 18 |
 | Styling | Tailwind CSS + **shadcn/ui** — dark fintech glassmorphism (teal accent) |
 | Config Next | `next.config.js` — `reactStrictMode: true` |
@@ -48,6 +48,7 @@ disimpan sebagai salinan bernama repo untuk referensi cepat.
 | `1.1.1` | shadcn + dark glass UI, landing showcase, warna sinyal H/K/M, Analytics, favicon |
 | `1.1.2` | Leaderboard Top 10 BELI/JUAL/TAHAN per market (universe curated) + ambang ±2.0 |
 | `1.1.3` | Optimasi API: retry/timeout/cache Yahoo, `/api/quote`, abort fetch client, concurrency terbatas |
+| `1.1.4` | Fix loop live quote posisi tersimpan dengan memoized open/closed positions |
 
 Lihat **Version Update Log** di `README.md` untuk detail penuh.
 
@@ -307,6 +308,9 @@ Edit universe = edit JSON lalu deploy/restart; tidak perlu DB.
 - `/api/quote` dipakai untuk watchlist dan posisi tersimpan, hanya mengirim
   harga terakhir, sinyal teknikal, currency, dan syariah. Ini mencegah
   background refresh memanggil `/api/stock` berkali-kali.
+- Daftar posisi terbuka/distutup di `PositionPanel` di-memoize supaya
+  update `quotes` tidak membuat array posisi baru dan memicu fetch ulang
+  tanpa perubahan data posisi.
 - Fetch client memakai `AbortController` + stale guard untuk search,
   forecast, leaderboard, watchlist, dan posisi. Request yang sudah tidak
   relevan tidak menimpa state terbaru.

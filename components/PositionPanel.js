@@ -688,8 +688,14 @@ export default function PositionPanel({
   displayCurrency = null,
   usdIdr = null,
 }) {
-  const open = positions.filter((p) => p.status === "open");
-  const closed = positions.filter((p) => p.status === "closed").slice(0, 5);
+  const open = useMemo(
+    () => positions.filter((p) => p.status === "open"),
+    [positions]
+  );
+  const closed = useMemo(
+    () => positions.filter((p) => p.status === "closed").slice(0, 5),
+    [positions]
+  );
   const quotes = useLiveQuotes(open, data, market);
   const activeSymbol = data?.symbol;
 

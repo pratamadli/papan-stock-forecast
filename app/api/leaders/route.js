@@ -8,7 +8,7 @@ export const maxDuration = 60;
 
 const ALLOWED = new Set(["IDX", "US", "CRYPTO"]);
 const CACHE_TTL_MS = 15 * 60 * 1000;
-const BATCH = 6;
+const BATCH = 4;
 const TOP_N = 10;
 
 /** @type {Map<string, { at: number, payload: object }>} */

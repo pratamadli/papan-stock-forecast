@@ -26,7 +26,7 @@ sengaja **tidak** di-deploy karena keterbatasan environment serverless.
 | Proyek Vercel | `papan-stock-forecast` |
 | Production URL | https://papan-stock-forecast.vercel.app/ |
 | Production branch | `main` → production; `dev` (& lainnya) → preview |
-| Versi app | `1.1.2` (`package.json`; footer `Papan v…`) |
+| Versi app | `1.1.3` (`package.json`; footer `Papan v…`) |
 | Framework | Next.js 14 (App Router), React 18 |
 | Styling | Tailwind CSS + **shadcn/ui** — dark fintech glassmorphism (teal accent) |
 | Config Next | `next.config.js` — `reactStrictMode: true` |
@@ -47,6 +47,7 @@ disimpan sebagai salinan bernama repo untuk referensi cepat.
 | `1.1.0` | CRYPTO, toggle USD/IDR, sinyal selektif, kalender libur, CSV, override target |
 | `1.1.1` | shadcn + dark glass UI, landing showcase, warna sinyal H/K/M, Analytics, favicon |
 | `1.1.2` | Leaderboard Top 10 BELI/JUAL/TAHAN per market (universe curated) + ambang ±2.0 |
+| `1.1.3` | Optimasi API: retry/timeout/cache Yahoo, `/api/quote`, abort fetch client, concurrency terbatas |
 
 Lihat **Version Update Log** di `README.md` untuk detail penuh.
 
@@ -104,6 +105,7 @@ publik/banyak orang sekaligus.
 | Watchlist multi-ticker | ✅ | Disimpan di `localStorage`, personal per-device |
 | Ekspor CSV watchlist | ✅ | Snapshot harga + sinyal + syariah |
 | Jurnal posisi beli → cek → jual | ✅ | Catat beli, saran cek ~10 hari bursa, saran jual, P&L |
+| Live quote ringan | ✅ | `/api/quote` untuk watchlist/posisi; concurrency terbatas agar tidak membebani `/api/stock` |
 | Override target jual / tanggal cek | ✅ | Saat catat beli atau edit kartu posisi |
 | Kalender libur bursa (cek lagi) | ✅ | Weekend + libur IDX/US di `lib/marketCalendar.js` |
 | Ekspor CSV posisi | ✅ | Jurnal + P&L + sinyal live + flag manual |
@@ -134,6 +136,7 @@ publik/banyak orang sekaligus.
 - **Analytics**: `@vercel/analytics` (root layout)
 - **Data source**: Yahoo Finance public chart & search endpoints (tanpa
   API key), dipanggil dari API route Next.js (server-side, hindari CORS);
+  retry 3x, timeout per attempt, fallback `query1`→`query2`, cache pendek;
   kurs USD/IDR (`fetchUsdIdrRate`) untuk toggle tampilan Rupiah
 - **State**: React state + `localStorage` untuk watchlist & jurnal posisi
   (tanpa database)
@@ -189,6 +192,10 @@ di-commit (ada di `.gitignore`).
 Kalau servis lokal itu mati/nggak dijalanin, `advanced` di response API
 cuma jadi `null`, dan panel "XGBoost (local)" di UI otomatis nggak muncul.
 Ini yang bikin app tetap 100% jalan normal saat di-deploy ke Vercel.
+
+**Endpoint ringan**: watchlist dan jurnal posisi memakai `/api/quote`
+untuk harga+sinyal ringkas. Endpoint forecast penuh `/api/stock` hanya
+dipakai saat user benar-benar membuka detail forecast satu ticker.
 
 **Dua port saat develop lokal:**
 - `http://localhost:3000` — UI + forecast utama (wajib dipakai user)
@@ -280,7 +287,7 @@ bursa (batasan Yahoo rate-limit + timeout Vercel).
 | Universe | `data/signal-universe.json` — array `IDX` / `US` / `CRYPTO` (~30–40 likuid) |
 | Endpoint | `GET /api/leaders?market=IDX\|US\|CRYPTO&range=6mo` (`refresh=1` bypass cache) |
 | Scoring | `fetchHistory` + `buildSignal` (sama dengan forecast); 1× benchmark RS per market |
-| Parallel | Batch concurrency 6; `maxDuration` 60s |
+| Parallel | Batch concurrency 4; `maxDuration` 60s |
 | Cache | In-memory per `market\|range`, TTL ~15 menit |
 | BELI | Top 10 `action===BUY` by skor ↓ |
 | JUAL | Top 10 `action===SELL` by skor ↑ (paling negatif dulu) |
@@ -289,6 +296,22 @@ bursa (batasan Yahoo rate-limit + timeout Vercel).
 | Catatan UI | Menampilkan `scanned/universeSize`; jujur “bukan seluruh bursa” |
 
 Edit universe = edit JSON lalu deploy/restart; tidak perlu DB.
+
+### 7.2.2 Optimasi API & resilience
+
+- `lib/yahoo.js` membatasi call Yahoo dengan retry 3 attempt di host utama,
+  timeout per attempt, fallback ke host kedua, dan cache response sukses
+  singkat agar panel yang meminta data sama tidak memukul Yahoo berulang.
+- `/api/stock` dipakai untuk forecast detail penuh; benchmark, fundamental,
+  FX, dan advanced signal dijalankan paralel setelah history utama berhasil.
+- `/api/quote` dipakai untuk watchlist dan posisi tersimpan, hanya mengirim
+  harga terakhir, sinyal teknikal, currency, dan syariah. Ini mencegah
+  background refresh memanggil `/api/stock` berkali-kali.
+- Fetch client memakai `AbortController` + stale guard untuk search,
+  forecast, leaderboard, watchlist, dan posisi. Request yang sudah tidak
+  relevan tidak menimpa state terbaru.
+- Di Vercel, `fetchAdvancedSignal` langsung dilewati jika `LOCAL_FORECAST_URL`
+  tidak di-set, karena servis XGBoost memang lokal-only.
 
 ### 7.3 Syariah Screener (`lib/syariah.js`)
 
@@ -466,6 +489,8 @@ jaringan kantor: `SSLCertVerificationError` saat `yfinance` hit
   IDX otomatis di-suffix `.JK`; crypto → `*-USD`. Mata uang response
   dipaksa dari market: IDX → `IDR`, US & CRYPTO → `USD`. Toggle tampilan
   Rupiah memakai kurs spot Yahoo (`IDR=X` / `USDIDR=X`) — bukan pair BIDR.
+  Wrapper Yahoo memakai retry, timeout, fallback host, dan cache pendek
+  untuk menjaga volume request tetap rendah.
 - **Lokal (XGBoost service)**: chart API Yahoo yang sama (periode lebih
   panjang, ~3–5 tahun), bukan crumb flow `yfinance`.
 - **BEI resmi**: tidak dipakai. BEI menjual data real-time lewat produk
@@ -488,6 +513,7 @@ papan-stock-forecast/
 │   ├── icon.svg / apple-icon.svg # Favicon sparkles (tab browser)
 │   └── api/
 │       ├── stock/route.js       # history + sinyal + fundamental + syariah + fx + advanced
+│       ├── quote/route.js       # harga + sinyal ringan untuk watchlist/posisi
 │       ├── leaders/route.js     # Top 10 BELI/JUAL/TAHAN per market (batched)
 │       └── search/route.js      # Autocomplete ticker
 ├── components/

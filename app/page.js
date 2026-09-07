@@ -38,6 +38,8 @@ export default function Home() {
   const [displayCurrency, setDisplayCurrency] = useState("USD");
   const debounceRef = useRef(null);
   const searchSeqRef = useRef(0);
+  const forecastSeqRef = useRef(0);
+  const forecastAbortRef = useRef(null);
   const skipSearchRef = useRef(false);
   const watchlist = useWatchlist();
   const positions = usePositions();
@@ -57,6 +59,7 @@ export default function Home() {
 
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
+    let controller = null;
 
     // Programmatic symbol updates (dropdown / watchlist / posisi) must not
     // re-open the autocomplete list.
@@ -73,22 +76,33 @@ export default function Home() {
 
     const seq = ++searchSeqRef.current;
     debounceRef.current = setTimeout(async () => {
+      controller = new AbortController();
       try {
         const params = new URLSearchParams({
           q: symbol.trim(),
           market,
         });
-        const res = await fetch(`/api/search?${params.toString()}`);
+        const res = await fetch(`/api/search?${params.toString()}`, {
+          signal: controller.signal,
+        });
         const json = await res.json();
         if (seq !== searchSeqRef.current) return;
         setSuggestions(json.results || []);
-      } catch {
+      } catch (err) {
+        if (err?.name === "AbortError") return;
         if (seq !== searchSeqRef.current) return;
         setSuggestions([]);
       }
     }, 350);
-    return () => clearTimeout(debounceRef.current);
+    return () => {
+      clearTimeout(debounceRef.current);
+      controller?.abort();
+    };
   }, [symbol, market]);
+
+  useEffect(() => {
+    return () => forecastAbortRef.current?.abort();
+  }, []);
 
   function toInputSymbol(sym, mkt) {
     if (mkt === "IDX") return sym.replace(/\.JK$/i, "");
@@ -105,6 +119,10 @@ export default function Home() {
   async function runForecast(chosenSymbol = symbol, chosenMarket = market) {
     if (!chosenSymbol.trim()) return;
     closeSuggestions();
+    forecastAbortRef.current?.abort();
+    const controller = new AbortController();
+    forecastAbortRef.current = controller;
+    const seq = ++forecastSeqRef.current;
     setLoading(true);
     setError(null);
     try {
@@ -113,15 +131,22 @@ export default function Home() {
         market: chosenMarket,
         range,
       });
-      const res = await fetch(`/api/stock?${params.toString()}`);
+      const res = await fetch(`/api/stock?${params.toString()}`, {
+        signal: controller.signal,
+      });
       const json = await res.json();
+      if (seq !== forecastSeqRef.current) return;
       if (!res.ok) throw new Error(json.error || "Gagal mengambil data");
       setData(json);
     } catch (err) {
+      if (err?.name === "AbortError" || seq !== forecastSeqRef.current) return;
       setError(err.message);
       setData(null);
     } finally {
-      setLoading(false);
+      if (seq === forecastSeqRef.current) {
+        setLoading(false);
+        forecastAbortRef.current = null;
+      }
     }
   }
 

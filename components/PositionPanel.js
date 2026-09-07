@@ -565,8 +565,27 @@ function BuyForm({ data, market, onAdd }) {
   );
 }
 
+const LIVE_QUOTE_CONCURRENCY = 2;
+
+async function mapPool(items, concurrency, fn) {
+  const out = new Array(items.length);
+  let i = 0;
+
+  async function worker() {
+    while (i < items.length) {
+      const idx = i++;
+      out[idx] = await fn(items[idx], idx);
+    }
+  }
+
+  await Promise.all(
+    Array.from({ length: Math.min(concurrency, items.length) }, () => worker())
+  );
+  return out;
+}
+
 /**
- * Live quotes for open positions — fetches /api/stock per unique symbol.
+ * Live quotes for open positions — fetches a lightweight endpoint per symbol.
  * Uses data already loaded for the active ticker to avoid a duplicate request.
  */
 function useLiveQuotes(positions, activeData, activeMarket) {
@@ -584,7 +603,7 @@ function useLiveQuotes(positions, activeData, activeMarket) {
     return out;
   }, [positions]);
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (controllers = [], isCancelled = () => false) => {
     const next = {};
 
     if (activeData?.symbol) {
@@ -598,34 +617,46 @@ function useLiveQuotes(positions, activeData, activeMarket) {
       };
     }
 
-    await Promise.all(
-      keys.map(async ({ symbol, market, key }) => {
+    await mapPool(
+      keys,
+      LIVE_QUOTE_CONCURRENCY,
+      async ({ symbol, market, key }) => {
+        if (isCancelled()) return;
         if (next[key]) return;
+        const controller = new AbortController();
+        controllers.push(controller);
         try {
           const params = new URLSearchParams({ symbol, market, range: "6mo" });
-          const res = await fetch(`/api/stock?${params.toString()}`);
+          const res = await fetch(`/api/quote?${params.toString()}`, {
+            signal: controller.signal,
+          });
           const json = await res.json();
           if (!res.ok) throw new Error(json.error || "Gagal memuat");
           next[key] = {
             status: "ready",
-            price: json.closes[json.closes.length - 1],
+            price: json.price,
             signal: json.signal,
             currency: currencyForMarket(market, json.currency),
-            usdIdr: json.fx?.usdIdr ?? null,
           };
         } catch (err) {
+          if (err?.name === "AbortError") return;
           next[key] = { status: "error", error: err.message };
         }
-      })
+      }
     );
 
-    setQuotes(next);
+    if (!isCancelled()) {
+      setQuotes(next);
+    }
   }, [keys, activeData, activeMarket]);
 
   useEffect(() => {
+    let cancelled = false;
+    const controllers = [];
+
     if (keys.length === 0) {
       setQuotes({});
-      return;
+      return undefined;
     }
     setQuotes((prev) => {
       const loading = {};
@@ -634,7 +665,12 @@ function useLiveQuotes(positions, activeData, activeMarket) {
       }
       return loading;
     });
-    load();
+    load(controllers, () => cancelled);
+
+    return () => {
+      cancelled = true;
+      controllers.forEach((controller) => controller.abort());
+    };
   }, [keys, load]);
 
   return quotes;

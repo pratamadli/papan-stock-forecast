@@ -60,7 +60,32 @@ export async function GET(request) {
       );
     }
 
-    const bench = await fetchBenchmarkCloses(market, range, history.symbol);
+    const benchPromise = fetchBenchmarkCloses(market, range, history.symbol);
+    const advancedPromise =
+      market === "CRYPTO" ? Promise.resolve(null) : fetchAdvancedSignal(symbol, market);
+    const fundamentalPromise =
+      market === "CRYPTO"
+        ? Promise.resolve(null)
+        : fetchFundamentals(symbol, market)
+            .then((rawFundamentals) =>
+              computeFundamentalValuation({
+                currentPrice:
+                  rawFundamentals.currentPrice ??
+                  history.closes[history.closes.length - 1],
+                trailingEps: rawFundamentals.trailingEps,
+                trailingPE: rawFundamentals.trailingPE,
+                dividendYield: rawFundamentals.dividendYield,
+                yearlyEarnings: rawFundamentals.yearlyEarnings,
+                priceHistory: history.closes,
+              })
+            )
+            .catch(() => null);
+    const fxPromise =
+      market === "CRYPTO" || market === "US"
+        ? fetchUsdIdrRate().catch(() => null)
+        : Promise.resolve(null);
+
+    const bench = await benchPromise;
 
     const signalInput = {
       closes: history.closes,
@@ -76,36 +101,12 @@ export async function GET(request) {
     const sma20 = sma(history.closes, 20);
     const sma50 = sma(history.closes, 50);
 
-    // Best-effort local XGBoost — silent null on Vercel / unsupported markets.
-    const advanced =
-      market === "CRYPTO" ? null : await fetchAdvancedSignal(symbol, market);
-
-    // Fundamentals only for equities — crypto has no meaningful EPS/P/E here.
-    let fundamental = null;
-    if (market !== "CRYPTO") {
-      try {
-        const rawFundamentals = await fetchFundamentals(symbol, market);
-        fundamental = computeFundamentalValuation({
-          currentPrice:
-            rawFundamentals.currentPrice ?? history.closes[history.closes.length - 1],
-          trailingEps: rawFundamentals.trailingEps,
-          trailingPE: rawFundamentals.trailingPE,
-          dividendYield: rawFundamentals.dividendYield,
-          yearlyEarnings: rawFundamentals.yearlyEarnings,
-          priceHistory: history.closes,
-        });
-      } catch {
-        fundamental = null;
-      }
-    }
-
     const syariah = checkSyariahStatus(symbol, market);
-
-    // FX for USD→IDR display toggle (CRYPTO & US). IDX already IDR.
-    let fx = null;
-    if (market === "CRYPTO" || market === "US") {
-      fx = await fetchUsdIdrRate();
-    }
+    const [advanced, fundamental, fx] = await Promise.all([
+      advancedPromise,
+      fundamentalPromise,
+      fxPromise,
+    ]);
 
     return NextResponse.json({
       ...history,

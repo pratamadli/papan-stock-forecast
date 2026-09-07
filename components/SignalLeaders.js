@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { RefreshCw } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -122,23 +122,41 @@ export default function SignalLeaders({ market: initialMarket = "IDX", onSelect 
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const requestSeqRef = useRef(0);
+  const abortRef = useRef(null);
 
   const load = useCallback(async (mkt, refresh = false) => {
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+    const seq = ++requestSeqRef.current;
+
     setLoading(true);
     setError(null);
     try {
       const params = new URLSearchParams({ market: mkt, range: "6mo" });
       if (refresh) params.set("refresh", "1");
-      const res = await fetch(`/api/leaders?${params.toString()}`);
+      const res = await fetch(`/api/leaders?${params.toString()}`, {
+        signal: controller.signal,
+      });
       const json = await res.json();
+      if (seq !== requestSeqRef.current) return;
       if (!res.ok) throw new Error(json.error || "Gagal memuat leaderboard");
       setData(json);
     } catch (err) {
+      if (err?.name === "AbortError" || seq !== requestSeqRef.current) return;
       setData(null);
       setError(err.message);
     } finally {
-      setLoading(false);
+      if (seq === requestSeqRef.current) {
+        setLoading(false);
+        abortRef.current = null;
+      }
     }
+  }, []);
+
+  useEffect(() => {
+    return () => abortRef.current?.abort();
   }, []);
 
   useEffect(() => {

@@ -15,7 +15,7 @@ API key), lalu kasih sinyal BUY/SELL/HOLD.
 | Production URL | https://papan-stock-forecast.vercel.app/ |
 | Deploy branches | `main` → production; `dev` → preview |
 | Stack | Next.js 14 (App Router), React 18, Tailwind CSS, shadcn/ui |
-| Versi | `1.1.2` (`package.json` → footer `Papan v…`) |
+| Versi | `1.1.3` (`package.json` → footer `Papan v…`) |
 | UI | Dark fintech glassmorphism — teal accent, sinyal hijau/kuning/merah, landing trust/security/vault |
 | Analytics | `@vercel/analytics` di root layout |
 | Favicon | `app/icon.svg` (+ `apple-icon.svg`) — sparkles mark |
@@ -29,7 +29,8 @@ API key), lalu kasih sinyal BUY/SELL/HOLD.
   (`query1/query2.finance.yahoo.com`) lewat API route Next.js, jadi tidak
   kena masalah CORS dan tidak perlu API key. Saham IDX otomatis dikasih
   suffix `.JK` (mis. `BBCA` → `BBCA.JK`); crypto otomatis `*-USD`
-  (mis. `BTC` → `BTC-USD`).
+  (mis. `BTC` → `BTC-USD`). Fetch Yahoo punya retry 3x, timeout per attempt,
+  fallback `query1` → `query2`, dan cache pendek untuk mengurangi call ganda.
 - **Tren**: proyeksi 10 hari ke depan pakai *Holt's linear trend method*
   (double exponential smoothing) — metode klasik yang cocok untuk deret
   waktu harga saham tanpa perlu training model berat.
@@ -59,7 +60,7 @@ di bawah form search (komponen `SignalLeaders`).
 | Ranking JUAL | Skor terendah di antara `SELL` |
 | Ranking TAHAN | `\|skor\|` tertinggi di antara `HOLD` (paling mendekati ambang) |
 | API | `GET /api/leaders?market=IDX\|US\|CRYPTO&range=6mo` (+ `refresh=1` paksa ulang) |
-| Cache | ~15 menit di memory server |
+| Cache | ~15 menit di memory server; batch concurrency 4 |
 | Interaksi | Klik symbol → isi ticker + jalankan forecast |
 
 Load pertama bisa 15–40 detik (batch Yahoo); reload berikutnya biasanya dari cache.
@@ -69,7 +70,9 @@ Load pertama bisa 15–40 detik (batch Yahoo); reload berikutnya biasanya dari c
 Simpan beberapa ticker lewat tombol "+ watchlist" di halaman hasil forecast.
 Watchlist disimpan di `localStorage` browser (personal, per-device, tidak
 perlu backend), dan nampilin ringkasan sinyal BUY/SELL/HOLD tiap saham yang
-disimpan sekaligus. Klik salah satu card buat lihat detail forecast-nya.
+disimpan sekaligus lewat endpoint ringan `/api/quote` (bukan forecast full).
+Request watchlist dibatasi concurrency supaya tidak membanjiri Yahoo/Vercel.
+Klik salah satu card buat lihat detail forecast-nya.
 Tombol **Ekspor CSV** mengunduh snapshot harga + sinyal + status syariah
 yang sedang tampil.
 
@@ -89,7 +92,9 @@ Volatilitas crypto tinggi — perlakukan sinyal sebagai filter, bukan kepastian.
 Catat beli dari hasil forecast (harga, lot, target jual, tanggal cek).
 Default tanggal cek = +10 **hari bursa** untuk IDX/US (weekend + libur
 dilewati), atau +10 **hari kalender** untuk CRYPTO. Target jual & tanggal
-cek bisa di-override. Tombol **Ekspor CSV** untuk backup jurnal.
+cek bisa di-override. Harga live posisi juga memakai `/api/quote` dengan
+concurrency terbatas, jadi posisi tersimpan tidak mengganggu forecast utama.
+Tombol **Ekspor CSV** untuk backup jurnal.
 
 ## Syariah Screener
 
@@ -202,7 +207,20 @@ Pembaruan di atas 1.1.0:
 - Favicon / Apple touch icon sparkles (`app/icon.svg`, `app/apple-icon.svg`)
   menggantikan ikon default Vercel di tab browser
 
-### 1.1.2 *(latest)*
+### 1.1.3 *(latest)*
+
+- **Optimasi API & stabilitas Yahoo**: retry 3x, timeout per attempt,
+  fallback host `query1` → `query2`, dan cache pendek di `lib/yahoo.js`
+- Endpoint ringan `GET /api/quote` untuk watchlist & posisi, sehingga
+  background refresh tidak lagi memakai `/api/stock` yang berat
+- Abort/stale guard di fetch client: search, forecast, leaderboard,
+  watchlist, dan posisi
+- `/api/stock` memparalelkan benchmark, fundamental, FX, dan advanced signal
+- Leaderboard concurrency diturunkan ke 4 agar lebih aman terhadap rate limit
+- Di Vercel, XGBoost lokal dilewati otomatis kalau `LOCAL_FORECAST_URL`
+  tidak dikonfigurasi
+
+### 1.1.2
 
 - **Leaderboard sinyal**: Top 10 BELI / JUAL / TAHAN per market (IDX · US ·
   CRYPTO) dari universe curated di `data/signal-universe.json`
